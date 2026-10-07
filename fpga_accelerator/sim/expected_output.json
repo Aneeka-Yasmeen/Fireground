@@ -1,0 +1,24 @@
+{
+  "activity_argmax": 2,
+  "environment_argmax": 1,
+  "physiological_argmax": 1,
+  "activity_logits_q4_11": [
+    -7551,
+    -26766,
+    7375
+  ],
+  "environment_logits_q4_11": [
+    -16632,
+    6355
+  ],
+  "physiological_logits_q4_11": [
+    1748,
+    14787,
+    -12887
+  ],
+  "float_activity_argmax": 2,
+  "float_environment_argmax": 1,
+  "float_physiological_argmax": 1,
+  "frac_bits": 11,
+  "width": 16
+}

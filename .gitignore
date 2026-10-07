@@ -1,0 +1,14 @@
+# Python virtual environments
+cnn_env/
+vbx_env/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Git
+.git/
+
+# Local backup package
+Fireground_AI_Final.zip
+.fireground.env

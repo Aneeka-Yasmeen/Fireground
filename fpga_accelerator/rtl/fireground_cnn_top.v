@@ -1,0 +1,435 @@
+// =============================================================================
+// fireground_cnn_top.v
+//
+// Sequential (single-MAC) hardware accelerator for the trained
+// "Fireground AI" multitask 1D-CNN (models/multitask_fireground_cnn_v2.keras).
+//
+// Pipeline (matches src/train_multitask_v2.py exactly):
+//   input (10 timesteps x 9 sensor channels)
+//     -> Conv1D  9->16ch, kernel=3, ReLU      (conv1)
+//     -> Conv1D 16->32ch, kernel=3, ReLU      (conv2)
+//     -> GlobalAveragePooling1D               (-> 32 values)
+//     -> Dense 32->32, ReLU                   (dense_shared)
+//     -> 3 parallel output heads (Dense, no activation in hardware -- see
+//        NOTE ON SOFTMAX below):
+//          activity        32->3
+//          environment     32->2
+//          physiological   32->3
+//
+// NOTE ON SOFTMAX: the trained model applies softmax to each head. Softmax
+// is monotonic, so it never changes which class has the highest score --
+// only the reported confidence. This accelerator reports the winning class
+// index (argmax of the raw logits) for each head, not a probability. Adding
+// hardware softmax (exp + divide) is a reasonable future extension if
+// per-class confidence is needed on-chip; it is not needed for the
+// classification decision itself, and omitting it keeps this first
+// accelerator design small. See docs/DESIGN_NOTES.md.
+//
+// NUMBER FORMAT: every input, weight, bias and intermediate activation is a
+// signed 16-bit Q4.11 fixed-point value (1 sign bit + 4 integer bits + 11
+// fractional bits; range -16 .. +15.9995, resolution 1/2048). Verified in
+// fpga_accelerator/tools/export_weights_fixedpoint.py that this format
+// reproduces the float32 model's classification on all 200 held-out test
+// windows (100% argmax agreement) before this RTL was written -- see that
+// script's printed output and fpga_accelerator/sim/expected_output.json.
+//
+// MAC rule (every multiply-accumulate in this design follows this exact
+// rule, matching the Python fixed-point reference bit-for-bit):
+//   acc         = sum(a_q4_11 * b_q4_11)              // 32-bit accumulator
+//   y_q4_11     = round_shift_right(acc, 11) + bias_q4_11
+//   y_q4_11     = saturate_to_16bit(y_q4_11)
+//   y_q4_11     = relu(y_q4_11)   // only on layers that have ReLU
+//
+// Datapath note: every MAC loop below reads its operand memories
+// COMBINATIONALLY (x_mem[addr], weight_rom[addr]) directly into the
+// accumulate expression in the same cycle the loop counters select that
+// address -- deliberately, so the last term of each inner loop is folded
+// into the accumulator in the same cycle the state machine decides to move
+// on. An earlier draft registered the operands one cycle ahead of the
+// accumulate step; that silently dropped the final MAC term of every inner
+// loop (the state machine advanced before the delayed product was added).
+// Caught by hand-tracing the cycle-by-cycle behavior against the Python
+// fixed-point reference, since no Verilog simulator was available in the
+// environment this was written in -- see docs/DESIGN_NOTES.md, and please
+// still run the testbench in sim/ yourself before synthesizing.
+//
+// This is a first, area-minimal accelerator: one shared adder/accumulator,
+// one MAC per clock cycle, weights held in on-chip ROM (Block RAM after
+// synthesis). Total MACs for one inference: 3456 (conv1) + 9216 (conv2) +
+// 1024 (dense_shared) + 256 (3 heads) = 13952, so one inference completes
+// in a few tens of thousands of clock cycles -- at 50 MHz that is well
+// under 1 ms, far faster than the ~1 Hz sensor sample rate this model was
+// designed for. A parallel/pipelined version trading area for throughput
+// is a natural next step once utilization/timing from this version is in
+// hand (see docs/DESIGN_NOTES.md).
+// =============================================================================
+
+module fireground_cnn_top #(
+    parameter DW       = 16,   // data width (Q4.11 signed)
+    parameter FRAC      = 11,  // fractional bits
+    parameter T_IN      = 10,  // input timesteps
+    parameter CIN0       = 9,  // input channels (sensor count)
+    parameter K          = 3,  // conv kernel size (both conv layers)
+    parameter COUT1      = 16, // conv1 output channels
+    parameter T1         = 8,  // = T_IN - K + 1
+    parameter COUT2      = 32, // conv2 output channels
+    parameter T2         = 6,  // = T1 - K + 1
+    parameter DENSE_N    = 32, // dense_shared width (== COUT2 after GAP)
+    parameter ACT_N      = 3,  // activity classes
+    parameter ENV_N      = 2,  // environment classes
+    parameter PHY_N      = 3   // physiological classes
+)(
+    input  wire                     clk,
+    input  wire                     rst_n,      // active-low synchronous reset
+    input  wire                     start,      // pulse 1 cycle to begin inference
+
+    // Input window: x_in[t][c] , t=0..T_IN-1, c=0..CIN0-1, Q4.11 signed.
+    // Loaded externally (testbench or host interface) before asserting
+    // start. Flattened as a byte/word-addressable RAM the host can write:
+    input  wire                     x_wr_en,
+    input  wire [7:0]               x_wr_addr,  // t*CIN0 + c
+    input  wire signed [DW-1:0]     x_wr_data,
+
+    output reg                      done,       // 1 for one cycle when result is valid
+    output reg  [1:0]               activity_argmax,
+    output reg  [1:0]               environment_argmax,
+    output reg  [1:0]               physiological_argmax
+);
+
+    // -------------------------------------------------------------------
+    // Weight / bias ROMs. Generated by
+    // fpga_accelerator/tools/export_weights_fixedpoint.py from the actual
+    // trained model, one signed 16-bit hex value per line, flattened in
+    // C/row-major order matching the indexing used below.
+    // -------------------------------------------------------------------
+    reg signed [DW-1:0] conv1_w_mem [0:K*CIN0*COUT1-1];   // [k][ci][co]
+    reg signed [DW-1:0] conv1_b_mem [0:COUT1-1];
+    reg signed [DW-1:0] conv2_w_mem [0:K*COUT1*COUT2-1];  // [k][ci][co]
+    reg signed [DW-1:0] conv2_b_mem [0:COUT2-1];
+    reg signed [DW-1:0] dense_w_mem [0:DENSE_N*DENSE_N-1]; // [in][out]
+    reg signed [DW-1:0] dense_b_mem [0:DENSE_N-1];
+    reg signed [DW-1:0] act_w_mem   [0:DENSE_N*ACT_N-1];
+    reg signed [DW-1:0] act_b_mem   [0:ACT_N-1];
+    reg signed [DW-1:0] env_w_mem   [0:DENSE_N*ENV_N-1];
+    reg signed [DW-1:0] env_b_mem   [0:ENV_N-1];
+    reg signed [DW-1:0] phy_w_mem   [0:DENSE_N*PHY_N-1];
+    reg signed [DW-1:0] phy_b_mem   [0:PHY_N-1];
+
+    initial begin
+        $readmemh("conv1_w.hex", conv1_w_mem);
+        $readmemh("conv1_b.hex", conv1_b_mem);
+        $readmemh("conv2_w.hex", conv2_w_mem);
+        $readmemh("conv2_b.hex", conv2_b_mem);
+        $readmemh("dense_w.hex", dense_w_mem);
+        $readmemh("dense_b.hex", dense_b_mem);
+        $readmemh("act_w.hex",   act_w_mem);
+        $readmemh("act_b.hex",   act_b_mem);
+        $readmemh("env_w.hex",   env_w_mem);
+        $readmemh("env_b.hex",   env_b_mem);
+        $readmemh("phy_w.hex",   phy_w_mem);
+        $readmemh("phy_b.hex",   phy_b_mem);
+    end
+
+    // -------------------------------------------------------------------
+    // Activation scratchpad memories
+    // -------------------------------------------------------------------
+    reg signed [DW-1:0] x_mem  [0:T_IN*CIN0-1];   // input,       [t*CIN0+c]
+    reg signed [DW-1:0] c1_mem [0:T1*COUT1-1];    // conv1 out,   [t*COUT1+co]
+    reg signed [DW-1:0] c2_mem [0:T2*COUT2-1];    // conv2 out,   [t*COUT2+co]
+    reg signed [DW-1:0] gap_mem[0:COUT2-1];       // pooled,      [c]
+    reg signed [DW-1:0] sh_mem [0:DENSE_N-1];     // dense_shared out, [n]
+
+    always @(posedge clk) begin
+        if (x_wr_en) x_mem[x_wr_addr] <= x_wr_data;
+    end
+
+    // -------------------------------------------------------------------
+    // Shared accumulator + requantize/ReLU helper.
+    // Operand reads happen combinationally at each call site (see states
+    // below) so the last term of an inner loop is captured in the same
+    // cycle the loop finishes -- no registered operand pipeline stage.
+    // -------------------------------------------------------------------
+    reg signed [31:0] acc;
+
+    function signed [DW-1:0] requantize_relu;
+        input signed [31:0] acc_in;
+        input signed [DW-1:0] bias_in;
+        input do_relu;
+        reg signed [31:0] shifted;
+        reg signed [31:0] biased;
+        begin
+            shifted = (acc_in + (32'sd1 <<< (FRAC-1))) >>> FRAC;
+            biased  = shifted + bias_in;
+            if (biased > 32'sd32767)       biased = 32'sd32767;
+            else if (biased < -32'sd32768) biased = -32'sd32768;
+            if (do_relu && biased < 0)
+                requantize_relu = 0;
+            else
+                requantize_relu = biased[DW-1:0];
+        end
+    endfunction
+
+    // -------------------------------------------------------------------
+    // Control FSM
+    // -------------------------------------------------------------------
+    localparam S_IDLE        = 4'd0,
+               S_CONV1        = 4'd1,
+               S_CONV1_WB     = 4'd2,
+               S_CONV2        = 4'd3,
+               S_CONV2_WB     = 4'd4,
+               S_GAP          = 4'd5,
+               S_DENSE        = 4'd6,
+               S_DENSE_WB     = 4'd7,
+               S_HEADS        = 4'd8,
+               S_HEADS_WB     = 4'd9,
+               S_DONE         = 4'd10;
+
+    reg [3:0] state;
+
+    // conv1 loop counters: t(0..T1-1), co(0..COUT1-1), k(0..K-1), ci(0..CIN0-1)
+    reg [3:0] c1_t, c1_co, c1_k, c1_ci;
+    // conv2 loop counters
+    // c2_co counts 0..COUT2-1 (0..31) and needs 5 bits -- a 4-bit
+    // declaration here was a real bug: it silently wraps at 15 back to 0
+    // in hardware and can never reach 31, so the condition that advances
+    // past conv2 into the rest of the pipeline never fires and the FSM
+    // hangs forever inside conv2. Caught by Synplify's synthesis-time
+    // reachability analysis (state machine extraction reported only 5 of
+    // 11 states reachable), not by simulation -- Python's unbounded
+    // integers don't model fixed-width register wraparound, so neither
+    // the hand-tracing nor tools/verify_fsm_cycle_accurate.py had a
+    // chance to catch this class of bug. See docs/DESIGN_NOTES.md.
+    reg [5:0] c2_t, c2_co, c2_k, c2_ci;
+    // gap accumulation
+    reg [5:0] gap_c;
+    reg [2:0] gap_t;
+    reg signed [31:0] gap_acc;
+    // dense_shared loop counters: out(0..31), in(0..31)
+    reg [5:0] d_out, d_in;
+    // output heads: head 0=activity(3),1=environment(2),2=physiological(3)
+    reg [1:0] head_sel;
+    reg [5:0] h_out, h_in;
+    reg [1:0] head_n; // number of outputs for the current head
+
+    // per-head running best-so-far (for argmax as we go)
+    reg signed [DW-1:0] best_val;
+    reg [1:0] best_idx;
+
+    // combinational address calculation (shared scratch, used per-state)
+    integer x_addr, w_addr;
+
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            state <= S_IDLE;
+            done  <= 1'b0;
+        end else begin
+            done <= 1'b0;
+            case (state)
+            // ------------------------------------------------- IDLE
+            S_IDLE: begin
+                if (start) begin
+                    c1_t <= 0; c1_co <= 0; c1_k <= 0; c1_ci <= 0;
+                    acc  <= 0;
+                    state <= S_CONV1;
+                end
+            end
+
+            // ------------------------------------------------- CONV1
+            // acc += x_mem[(t+k)*CIN0+ci] * conv1_w[k][ci][co]
+            // (combinational read + accumulate, same cycle as the address
+            // is selected -- see datapath note above)
+            S_CONV1: begin
+                x_addr = (c1_t + c1_k) * CIN0 + c1_ci;
+                w_addr = c1_k * (CIN0*COUT1) + c1_ci * COUT1 + c1_co;
+                acc <= acc + $signed(x_mem[x_addr]) * $signed(conv1_w_mem[w_addr]);
+                if (c1_ci == CIN0-1) begin
+                    c1_ci <= 0;
+                    if (c1_k == K-1) begin
+                        c1_k <= 0;
+                        state <= S_CONV1_WB;
+                    end else
+                        c1_k <= c1_k + 1'b1;
+                end else
+                    c1_ci <= c1_ci + 1'b1;
+            end
+            S_CONV1_WB: begin
+                c1_mem[c1_t*COUT1 + c1_co] <= requantize_relu(acc, conv1_b_mem[c1_co], 1'b1);
+                acc <= 0;
+                if (c1_co == COUT1-1) begin
+                    c1_co <= 0;
+                    if (c1_t == T1-1) begin
+                        c1_t <= 0; c2_t <= 0; c2_co <= 0; c2_k <= 0; c2_ci <= 0;
+                        state <= S_CONV2;
+                    end else begin
+                        c1_t <= c1_t + 1'b1;
+                        state <= S_CONV1;
+                    end
+                end else begin
+                    c1_co <= c1_co + 1'b1;
+                    state <= S_CONV1;
+                end
+            end
+
+            // ------------------------------------------------- CONV2
+            S_CONV2: begin
+                x_addr = (c2_t + c2_k) * COUT1 + c2_ci;
+                w_addr = c2_k * (COUT1*COUT2) + c2_ci * COUT2 + c2_co;
+                acc <= acc + $signed(c1_mem[x_addr]) * $signed(conv2_w_mem[w_addr]);
+                if (c2_ci == COUT1-1) begin
+                    c2_ci <= 0;
+                    if (c2_k == K-1) begin
+                        c2_k <= 0;
+                        state <= S_CONV2_WB;
+                    end else
+                        c2_k <= c2_k + 1'b1;
+                end else
+                    c2_ci <= c2_ci + 1'b1;
+            end
+            S_CONV2_WB: begin
+                c2_mem[c2_t*COUT2 + c2_co] <= requantize_relu(acc, conv2_b_mem[c2_co], 1'b1);
+                acc <= 0;
+                if (c2_co == COUT2-1) begin
+                    c2_co <= 0;
+                    if (c2_t == T2-1) begin
+                        c2_t <= 0; gap_c <= 0; gap_t <= 0; gap_acc <= 0;
+                        state <= S_GAP;
+                    end else begin
+                        c2_t <= c2_t + 1'b1;
+                        state <= S_CONV2;
+                    end
+                end else begin
+                    c2_co <= c2_co + 1'b1;
+                    state <= S_CONV2;
+                end
+            end
+
+            // ------------------------------------------------- GAP
+            // gap_mem[c] = round(mean_t c2_mem[t][c])   (average of T2=6 samples)
+            S_GAP: begin
+                if (gap_t == T2-1) begin
+                    // round-to-nearest divide by T2; gap_acc here still
+                    // holds the OLD (pre-this-cycle) sum since it is a
+                    // registered accumulator updated with <=, so the
+                    // current term is added explicitly.
+                    gap_mem[gap_c] <= (gap_acc + c2_mem[gap_t*COUT2+gap_c] + (T2>>1)) / T2;
+                    gap_acc <= 0;
+                    gap_t   <= 0;
+                    if (gap_c == COUT2-1) begin
+                        gap_c <= 0;
+                        d_out <= 0; d_in <= 0; acc <= 0;
+                        state <= S_DENSE;
+                    end else
+                        gap_c <= gap_c + 1'b1;
+                end else begin
+                    gap_acc <= gap_acc + c2_mem[gap_t*COUT2 + gap_c];
+                    gap_t <= gap_t + 1'b1;
+                end
+            end
+
+            // ------------------------------------------------- DENSE_SHARED
+            S_DENSE: begin
+                w_addr = d_in * DENSE_N + d_out;
+                acc <= acc + $signed(gap_mem[d_in]) * $signed(dense_w_mem[w_addr]);
+                if (d_in == DENSE_N-1) begin
+                    d_in <= 0;
+                    state <= S_DENSE_WB;
+                end else
+                    d_in <= d_in + 1'b1;
+            end
+            S_DENSE_WB: begin
+                sh_mem[d_out] <= requantize_relu(acc, dense_b_mem[d_out], 1'b1);
+                acc <= 0;
+                if (d_out == DENSE_N-1) begin
+                    d_out <= 0;
+                    head_sel <= 0; h_out <= 0; h_in <= 0;
+                    best_val <= -32768; best_idx <= 0;
+                    state <= S_HEADS;
+                end else begin
+                    d_out <= d_out + 1'b1;
+                    state <= S_DENSE;
+                end
+            end
+
+            // ------------------------------------------------- OUTPUT HEADS
+            // head_sel: 0=activity(N=3), 1=environment(N=2), 2=physiological(N=3)
+            S_HEADS: begin
+                case (head_sel)
+                    2'd0: begin
+                        acc <= acc + $signed(sh_mem[h_in]) * $signed(act_w_mem[h_in*ACT_N + h_out]);
+                        head_n <= ACT_N;
+                    end
+                    2'd1: begin
+                        acc <= acc + $signed(sh_mem[h_in]) * $signed(env_w_mem[h_in*ENV_N + h_out]);
+                        head_n <= ENV_N;
+                    end
+                    default: begin
+                        acc <= acc + $signed(sh_mem[h_in]) * $signed(phy_w_mem[h_in*PHY_N + h_out]);
+                        head_n <= PHY_N;
+                    end
+                endcase
+                if (h_in == DENSE_N-1) begin
+                    h_in <= 0;
+                    state <= S_HEADS_WB;
+                end else
+                    h_in <= h_in + 1'b1;
+            end
+            S_HEADS_WB: begin
+                begin : wb_block
+                    reg signed [DW-1:0] bias_v;
+                    reg signed [DW-1:0] logit;
+                    reg signed [DW-1:0] new_best_val;
+                    reg [1:0]           new_best_idx;
+                    case (head_sel)
+                        2'd0: bias_v = act_b_mem[h_out];
+                        2'd1: bias_v = env_b_mem[h_out];
+                        default: bias_v = phy_b_mem[h_out];
+                    endcase
+                    logit = requantize_relu(acc, bias_v, 1'b0); // no ReLU on logits
+
+                    // Compare using THIS cycle's logit, combinationally --
+                    // best_val/best_idx are registered one cycle behind, so
+                    // reading them directly here would miss the case where
+                    // the very last class evaluated is the winner.
+                    if (logit > best_val) begin
+                        new_best_val = logit;
+                        new_best_idx = h_out[1:0];
+                    end else begin
+                        new_best_val = best_val;
+                        new_best_idx = best_idx;
+                    end
+                    best_val <= new_best_val;
+                    best_idx <= new_best_idx;
+                    acc <= 0;
+
+                    if (h_out == head_n-1) begin
+                        h_out <= 0;
+                        if (head_sel == 2'd0) activity_argmax      <= new_best_idx;
+                        else if (head_sel == 2'd1) environment_argmax   <= new_best_idx;
+                        else physiological_argmax <= new_best_idx;
+
+                        best_val <= -32768; best_idx <= 0;
+                        if (head_sel == 2'd2) begin
+                            state <= S_DONE;
+                        end else begin
+                            head_sel <= head_sel + 1'b1;
+                            state <= S_HEADS;
+                        end
+                    end else begin
+                        h_out <= h_out + 1'b1;
+                        state <= S_HEADS;
+                    end
+                end
+            end
+
+            // ------------------------------------------------- DONE
+            S_DONE: begin
+                done  <= 1'b1;
+                state <= S_IDLE;
+            end
+
+            default: state <= S_IDLE;
+            endcase
+        end
+    end
+
+endmodule

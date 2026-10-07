@@ -1,0 +1,8 @@
+{
+  "format": "Q4.11 signed 16-bit",
+  "frac_bits": 11,
+  "int_bits": 4,
+  "width": 16,
+  "q_min": -32768,
+  "q_max": 32767
+}

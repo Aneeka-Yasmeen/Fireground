@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fireground AI • Vercel Dashboard</title>
+<style>
+:root{
+  --bg:#06101d;--panel:#0d1a2b;--panel2:#091525;--border:#20334d;
+  --text:#edf5ff;--muted:#8191ab;--cyan:#65d9ff;
+  --green:#4fe0a2;--amber:#ffd166;--red:#ff6478;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:radial-gradient(circle at 10% 0%,#102b48 0,#06101d 35%,#050c16 100%);
+  color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif
+}
+.wrap{max-width:1440px;margin:auto;padding:28px}
+.top{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:20px}
+.eyebrow{font-size:11px;letter-spacing:.16em;font-weight:800;color:var(--muted)}
+h1{margin:7px 0 0;font-size:36px;letter-spacing:-.03em}
+h1 span{color:var(--cyan);font-weight:600}
+.actions{display:flex;gap:10px;align-items:center}
+button{background:#14263f;border:1px solid var(--border);color:var(--text);border-radius:9px;padding:10px 13px;cursor:pointer}
+button:hover{border-color:var(--cyan)}
+.live{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block}
+.card{
+  background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border:1px solid var(--border);border-radius:16px;
+  box-shadow:0 18px 55px rgba(0,0,0,.18)
+}
+.hero{display:grid;grid-template-columns:1.25fr .75fr 1fr;gap:15px}
+.status{padding:22px;min-height:185px}
+.label{color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.13em}
+.big{font-size:58px;font-weight:900;margin:22px 0 4px}
+.normal .big{color:var(--green)} .elevated .big{color:var(--amber)} .high .big{color:var(--red)}
+.gauge{padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring{width:150px;height:150px;border-radius:50%;background:conic-gradient(var(--cyan) var(--p),#1b2d48 0);display:grid;place-items:center;margin-top:10px}
+.ring-in{width:111px;height:111px;border-radius:50%;background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring-in strong{font-size:39px}.ring-in span{font-size:11px;color:var(--muted)}
+.meta{padding:21px}.latest{font-size:22px;font-weight:750;margin:17px 0}
+.row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);color:var(--muted)}
+.row strong{color:var(--text)}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:15px 0}
+.stat{padding:17px}.stat strong{display:block;font-size:34px}.stat span{display:block;margin-top:3px;color:var(--muted);font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:800}
+.stat.normal strong{color:var(--green)} .stat.elevated strong{color:var(--amber)} .stat.high strong{color:var(--red)}
+.panel{padding:22px;margin-top:15px}
+.panel-head{display:flex;justify-content:space-between;gap:15px;align-items:flex-end;margin-bottom:17px}
+h2{margin:6px 0 0;font-size:21px}
+.note{font-size:11px;color:var(--muted)}
+.pred-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.pred{padding:15px;border:1px solid var(--border);border-radius:12px;background:#091526;display:grid;grid-template-columns:42px 1fr auto;gap:12px;align-items:center}
+.icon{width:40px;height:40px;border-radius:11px;background:#152944;color:var(--cyan);display:grid;place-items:center;font-weight:900}
+.pred small{display:block;color:var(--muted);font-size:9px;letter-spacing:.12em;font-weight:800}
+.pred strong{display:block;font-size:20px;margin-top:5px}
+.conf{color:var(--cyan);font-weight:800;font-size:12px}
+.sensor-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.sensor{padding:14px;border:1px solid var(--border);border-radius:12px;background:#091526}
+.sensor-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.sensor-name{font-weight:750}.sensor-unit{font-size:10px;color:var(--muted);margin-top:2px}
+.sensor-value{font-size:24px;font-weight:850;color:var(--cyan)}
+.sensor-meta{font-size:10px;color:var(--muted);margin-top:3px;text-align:right}
+.mini{height:135px;margin-top:9px;border:1px solid #1b2a42;border-radius:9px;background:#07111f;overflow:hidden}
+.mini svg{width:100%;height:100%;display:block}
+.gridline{stroke:#203149;stroke-width:1}.spark{fill:none;stroke:var(--cyan);stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}.point{fill:var(--cyan)}
+.chart{padding:10px;background:#07111f;border:1px solid var(--border);border-radius:12px}
+.chart svg{display:block;width:100%;height:275px}
+.axis{fill:#63738e;font-size:10px}.riskline{fill:none;stroke:var(--cyan);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.bar.normal{fill:rgba(79,224,162,.36)}.bar.elevated{fill:rgba(255,209,102,.38)}.bar.high{fill:rgba(255,100,120,.42)}
+.legend{display:flex;gap:15px;color:var(--muted);font-size:11px}.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.legend .n{background:var(--green)}.legend .e{background:var(--amber)}.legend .h{background:var(--red)}
+.table-wrap{overflow:auto;border:1px solid var(--border);border-radius:12px;margin-top:10px}
+table{border-collapse:collapse;width:100%;min-width:760px}th,td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;font-size:12px}
+th{font-size:9px;color:var(--muted);letter-spacing:.12em}tr:last-child td{border-bottom:0}
+.pill{padding:4px 7px;border-radius:99px;font-weight:800;font-size:10px}.pill.normal{color:var(--green);background:rgba(79,224,162,.09)}.pill.elevated{color:var(--amber);background:rgba(255,209,102,.09)}.pill.high{color:var(--red);background:rgba(255,100,120,.09)}
+.map{height:270px;border:1px solid var(--border);border-radius:12px;background:#07111f;position:relative;overflow:hidden}
+.map:before,.map:after{content:"";position:absolute;background:#1a2a42}.map:before{left:25%;top:0;bottom:0;width:1px;box-shadow:180px 0 #1a2a42,360px 0 #1a2a42,540px 0 #1a2a42}.map:after{top:25%;left:0;right:0;height:1px;box-shadow:0 65px #1a2a42,0 130px #1a2a42,0 195px #1a2a42}
+.marker{position:absolute;width:18px;height:18px;border-radius:50%;background:var(--cyan);box-shadow:0 0 0 8px rgba(101,217,255,.11),0 0 28px rgba(101,217,255,.55);transform:translate(-50%,-50%);z-index:2;cursor:pointer}
+.marker.elevated{background:var(--amber);box-shadow:0 0 0 8px rgba(255,209,102,.13),0 0 28px rgba(255,209,102,.55)}
+.marker.high{background:var(--red);box-shadow:0 0 0 8px rgba(255,100,120,.15),0 0 28px rgba(255,100,120,.6)}
+.marker.selected{outline:3px solid #fff;outline-offset:2px}
+.marker-label{position:absolute;top:22px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--text);background:#0d1a2bcc;padding:2px 5px;border-radius:5px;white-space:nowrap;pointer-events:none}
+.map-label{position:absolute;left:14px;top:12px;color:var(--muted);font-size:10px;letter-spacing:.1em;font-weight:800;z-index:3}
+.map-badge{position:absolute;right:12px;top:12px;padding:7px 9px;background:#101e34;border:1px solid var(--border);border-radius:9px;font-size:11px;z-index:3}
+
+.ff-tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px}
+.ff-tab{display:flex;align-items:center;gap:8px;padding:11px 15px;border-radius:12px;border:1px solid var(--border);background:linear-gradient(180deg,var(--panel),var(--panel2));color:var(--text);cursor:pointer;font-size:12px;text-align:left;font-family:inherit}
+.ff-tab:hover{border-color:var(--cyan)}
+.ff-tab.active{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
+.ff-tab-name{font-weight:750}
+.ff-tab-id{color:var(--muted);font-size:10px}
+.ff-dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0}
+.ff-dot.normal{background:var(--green)}.ff-dot.elevated{background:var(--amber)}.ff-dot.high{background:var(--red)}
+.danger-banner{padding:14px 18px;margin-bottom:15px;border:1px solid var(--red);background:rgba(255,100,120,.07)}
+.danger-row{padding:6px 0;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.danger-row strong{color:var(--text)}
+footer{display:flex;flex-wrap:wrap;gap:18px;padding:18px 2px 4px;color:var(--muted);font-size:11px}
+footer strong{color:var(--text)}
+
+.water-scenario{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:15px;
+  margin-top:15px;
+}
+.scenario-card,.hydraulic-card{
+  padding:22px;
+}
+.scenario-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+  margin-top:15px;
+}
+.field label{
+  display:block;
+  color:var(--muted);
+  font-size:9px;
+  letter-spacing:.11em;
+  font-weight:800;
+  margin-bottom:6px;
+}
+.field input,.field select{
+  width:100%;
+  background:#07111f;
+  color:var(--text);
+  border:1px solid var(--border);
+  border-radius:9px;
+  padding:10px;
+  font-size:13px;
+  outline:none;
+}
+.field input:focus,.field select:focus{
+  border-color:var(--cyan);
+}
+.calc-btn{
+  width:100%;
+  margin-top:12px;
+  background:#12304a;
+  border-color:#2d5675;
+}
+.hydraulic-result{
+  margin-top:15px;
+}
+.hydraulic-value{
+  display:flex;
+  justify-content:space-between;
+  gap:15px;
+  padding:10px 0;
+  border-bottom:1px solid var(--border);
+  font-size:13px;
+}
+.hydraulic-value span{
+  color:var(--muted);
+}
+.hydraulic-value strong{
+  color:var(--text);
+  text-align:right;
+}
+.saved-note{
+  margin-top:10px;
+  font-size:10px;
+  color:var(--muted);
+  line-height:1.5;
+}
+.water-warning{
+  margin-top:14px;
+  padding:10px 12px;
+  border:1px dashed var(--border);
+  border-radius:10px;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.5;
+}
+@media(max-width:1050px){
+  .water-scenario{grid-template-columns:1fr}
+}
+@media(max-width:740px){
+  .scenario-grid{grid-template-columns:1fr}
+}
+
+@media(max-width:1050px){.hero{grid-template-columns:1fr}.sensor-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:740px){.wrap{padding:16px}.top{flex-direction:column}.stats{grid-template-columns:repeat(2,1fr)}.pred-grid{grid-template-columns:1fr}.sensor-grid{grid-template-columns:1fr}.big{font-size:46px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">FIREGROUND AI • VNNX • ONLINE DASHBOARD</div>
+      <h1>Fireground AI <span>Command Dashboard</span></h1>
+    </div>
+    <div class="actions">
+      <button onclick="location.reload()">Refresh</button>
+      <div class="live"><span class="dot"></span> DATA SNAPSHOT</div>
+    </div>
+  </header>
+
+  <div id="app"></div>
+</div>
+
+<script>
+let D=null;
+let selectedFirefighterId=null;
+
+const esc = v => String(v ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+const statusClass = s => ({NORMAL:"normal",ELEVATED:"elevated",HIGH:"high"}[String(s||"").toUpperCase()]||"normal");
+const pct = v => (Number(v||0)*100).toFixed(1)+"%";
+
+function lineSvg(values, width=520, height=135){
+  const pad={l:16,r:9,t:10,b:18}, pw=width-pad.l-pad.r, ph=height-pad.t-pad.b;
+  const nums=values.map(Number), min=Math.min(...nums), max=Math.max(...nums);
+  const range=(max-min)||1;
+  const points=nums.map((v,i)=>{
+    const x=pad.l+(nums.length===1?pw/2:pw*i/(nums.length-1));
+    const y=pad.t+ph-(v-min)/range*ph;
+    return [x,y];
+  });
+  const grid=[0,.5,1].map(t=>`<line class="gridline" x1="${pad.l}" y1="${pad.t+ph*t}" x2="${width-pad.r}" y2="${pad.t+ph*t}"/>`).join("");
+  const poly=points.map(p=>p.join(",")).join(" ");
+  const last=points[points.length-1];
+  return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+    ${grid}<polyline class="spark" points="${poly}"/>
+    ${last?`<circle class="point" cx="${last[0]}" cy="${last[1]}" r="3.2"/>`:""}
+  </svg>`;
+}
+
+function riskSvg(results){
+  const W=1050,H=285,L=48,R=22,T=18,B=40,PW=W-L-R,PH=H-T-B,n=results.length||1;
+  const scores=results.map(r=>Number(r?.risk?.risk_score||0));
+  const pts=[],bars=[],grid=[];
+  for(let s=0;s<=5;s++){const y=T+PH-(s/5)*PH;grid.push(`<line class="gridline" x1="${L}" y1="${y}" x2="${W-R}" y2="${y}"/><text class="axis" x="10" y="${y+4}">${s}</text>`);}
+  results.forEach((r,i)=>{
+    const x=n===1?L+PW/2:L+PW*i/(n-1), score=Math.min(5,scores[i]||0), y=T+PH-score/5*PH;
+    const bw=Math.max(2.4,PW/n-1.3), y0=T+PH;
+    bars.push(`<rect class="bar ${statusClass(r?.risk?.local_status)}" x="${x-bw/2}" y="${y}" width="${bw}" height="${y0-y}" rx="2"/>`);
+    pts.push(`${x},${y}`);
+  });
+  return `<svg viewBox="0 0 ${W} ${H}">${grid.join("")}${bars.join("")}<polyline class="riskline" points="${pts.join(" ")}"/>
+    <text class="axis" x="${L}" y="${H-10}">Window 1</text><text class="axis" x="${W-R-70}" y="${H-10}">Window ${n}</text></svg>`;
+}
+
+function sensorCard(ch, stream){
+  const vals=(stream||[]).map(r=>r[ch.key]);
+  const last=vals[vals.length-1], min=Math.min(...vals), max=Math.max(...vals);
+  return `<div class="sensor">
+    <div class="sensor-top">
+      <div><div class="sensor-name">${esc(ch.name)}</div><div class="sensor-unit">${esc(ch.unit)}</div></div>
+      <div><div class="sensor-value">${Number(last).toFixed(ch.key==="heart_rate"||ch.key==="temperature"?2:3)}</div><div class="sensor-meta">latest</div></div>
+    </div>
+    <div class="mini">${lineSvg(vals)}</div>
+    <div class="sensor-meta">min ${min.toFixed(2)} • max ${max.toFixed(2)} • 60 samples</div>
+  </div>`;
+}
+
+
+const WATER_SETTINGS_KEY = "fireground_water_settings_v2";
+
+const defaultWaterSettings = {
+  hoseDiameter: 65,
+  hoseLength: 30,
+  nozzleType: "Fog",
+  nozzleDiameter: 19,
+  elevation: 12,
+  dischargeCoeff: 0.98,
+  hwC: 140
+};
+
+let currentAiFlowLpm = 450;
+let currentWaterLevel = "MEDIUM";
+let currentDemandIndex = 0;
+
+function getWaterSettings(){
+  try{
+    const saved = JSON.parse(
+      localStorage.getItem(WATER_SETTINGS_KEY) || "{}"
+    );
+
+    return {
+      ...defaultWaterSettings,
+      ...saved
+    };
+  }catch{
+    return {...defaultWaterSettings};
+  }
+}
+
+function setFieldValue(id, value){
+  const el=document.getElementById(id);
+  if(el) el.value=value;
+}
+
+function numberValue(id){
+  const v=Number(document.getElementById(id)?.value);
+  return Number.isFinite(v) ? v : 0;
+}
+
+function restoreWaterSettings(){
+
+  const s=getWaterSettings();
+
+  setFieldValue("hoseDiameter", s.hoseDiameter);
+  setFieldValue("hoseLength", s.hoseLength);
+  setFieldValue("nozzleType", s.nozzleType);
+  setFieldValue("nozzleDiameter", s.nozzleDiameter);
+  setFieldValue("elevation", s.elevation);
+  setFieldValue("dischargeCoeff", s.dischargeCoeff);
+  setFieldValue("hwC", s.hwC);
+
+  updateWaterCalculation();
+}
+
+function saveWaterSettings(){
+
+  const s={
+    hoseDiameter:numberValue("hoseDiameter"),
+    hoseLength:numberValue("hoseLength"),
+    nozzleType:
+      document.getElementById("nozzleType")?.value || "Fog",
+    nozzleDiameter:numberValue("nozzleDiameter"),
+    elevation:numberValue("elevation"),
+    dischargeCoeff:numberValue("dischargeCoeff"),
+    hwC:numberValue("hwC")
+  };
+
+  localStorage.setItem(
+    WATER_SETTINGS_KEY,
+    JSON.stringify(s)
+  );
+}
+
+function updateWaterCalculation(){
+
+  const hoseDiameter = numberValue("hoseDiameter");
+  const hoseLength = numberValue("hoseLength");
+  const nozzleDiameter = numberValue("nozzleDiameter");
+  const elevation = numberValue("elevation");
+  const cd = numberValue("dischargeCoeff");
+  const hwC = numberValue("hwC");
+
+  if(
+    hoseDiameter <= 0 ||
+    hoseLength < 0 ||
+    nozzleDiameter <= 0 ||
+    cd <= 0 ||
+    hwC <= 0 ||
+    currentAiFlowLpm <= 0
+  ){
+    return;
+  }
+
+  const flowLpm = currentAiFlowLpm;
+
+  // ----------------------------------------------------------
+  // NOZZLE PRESSURE
+  //
+  // Q = Cd * A * sqrt(2*DeltaP/rho)
+  //
+  // Rearranged to obtain pressure.
+  // ----------------------------------------------------------
+
+  const rho = 998;
+  const g = 9.80665;
+
+  const Q = flowLpm / 1000 / 60;
+  const dNozzle = nozzleDiameter / 1000;
+  const dHose = hoseDiameter / 1000;
+
+  const area =
+    Math.PI * dNozzle * dNozzle / 4;
+
+  const nozzlePressurePa =
+    0.5 * rho *
+    Math.pow(Q / (cd * area), 2);
+
+  const nozzlePressureBar =
+    nozzlePressurePa / 100000;
+
+  // ----------------------------------------------------------
+  // HAZEN-WILLIAMS HOSE FRICTION
+  //
+  // Result is metres of water head.
+  // ----------------------------------------------------------
+
+  const hf =
+    10.67 *
+    hoseLength *
+    Math.pow(Q, 1.852)
+    /
+    (
+      Math.pow(hwC, 1.852) *
+      Math.pow(dHose, 4.87)
+    );
+
+  const frictionPressureBar =
+    (rho * g * hf) / 100000;
+
+  // ----------------------------------------------------------
+  // ELEVATION LOSS
+  // ----------------------------------------------------------
+
+  const elevationPressureBar =
+    (rho * g * elevation) / 100000;
+
+  // ----------------------------------------------------------
+  // PUMP PRESSURE ESTIMATE
+  // ----------------------------------------------------------
+
+  const pumpPressureBar =
+    nozzlePressureBar +
+    frictionPressureBar +
+    elevationPressureBar;
+
+  saveWaterSettings();
+
+  document.getElementById("waterDemandDisplay").textContent =
+    currentWaterLevel;
+
+  document.getElementById("demandIndexDisplay").textContent =
+    Number(currentDemandIndex).toFixed(1) + " / 100";
+
+  document.getElementById("flowDisplay").textContent =
+    flowLpm.toFixed(0) + " L/min";
+
+  const nozzleType =
+    document.getElementById("nozzleType")?.value || "Fog";
+
+  document.getElementById("nozzleDisplay").textContent =
+    nozzleType +
+    " • " +
+    nozzleDiameter.toFixed(1) +
+    " mm";
+
+  document.getElementById("nozzlePressureDisplay").textContent =
+    nozzlePressureBar.toFixed(2) + " bar";
+
+  document.getElementById("frictionDisplay").textContent =
+    frictionPressureBar.toFixed(2) + " bar";
+
+  document.getElementById("elevationDisplay").textContent =
+    elevationPressureBar.toFixed(2) + " bar";
+
+  document.getElementById("pumpPressureDisplay").textContent =
+    pumpPressureBar.toFixed(2) + " bar";
+}
+
+function calculateHydraulics(){
+  updateWaterCalculation();
+}
+
+function firefighterTabs(firefighters){
+  const ids=Object.keys(firefighters);
+  return `<div class="ff-tabs">${ids.map(id=>{
+    const f=firefighters[id];
+    const active=id===selectedFirefighterId?"active":"";
+    return `<button class="ff-tab ${active}" onclick="selectFirefighter('${id.replace(/'/g,"")}')">
+      <span class="ff-dot ${statusClass(f.overall_status)}"></span>
+      <span><span class="ff-tab-name">${esc(f.name)}</span><br><span class="ff-tab-id">${esc(id)} • Zone ${esc(f.zone)}</span></span>
+    </button>`;
+  }).join("")}</div>`;
+}
+
+function dangerBanner(alerts){
+  if(!alerts||!alerts.length) return "";
+  return `<div class="card danger-banner">
+    <div class="label">⚠ DANGER ALERTS</div>
+    ${alerts.map(a=>`<div class="danger-row"><span class="pill ${statusClass(a.status)}">${esc(a.status)}</span><strong>${esc(a.name)}</strong> (${esc(a.id)}, Zone ${esc(a.zone)}) — ${esc(a.event_type||"")}</div>`).join("")}
+  </div>`;
+}
+
+function selectFirefighter(id){
+  selectedFirefighterId=id;
+  fullRender();
+}
+
+function fullRender(){
+  const waterFormState=captureWaterForm();
+  render();
+  restoreWaterForm(waterFormState);
+  attachWaterInputListeners();
+}
+
+function render(){
+  const firefighters=D.firefighters||{};
+  const ids=Object.keys(firefighters);
+
+  if(!selectedFirefighterId || !firefighters[selectedFirefighterId]){
+    selectedFirefighterId =
+      ids.find(id=>firefighters[id].overall_status==="HIGH")
+      || ids.find(id=>firefighters[id].overall_status==="ELEVATED")
+      || ids[0]
+      || null;
+  }
+
+  const ff=firefighters[selectedFirefighterId]||{};
+  const results=ff.results||[];
+  const latest=ff.latest||results[results.length-1]||{};
+  const ai=latest.ai_prediction||{}, risk=latest.risk||{}, zone=latest.zone||{};
+  const st=String(D.overall_status||"UNKNOWN").toUpperCase(), cls=statusClass(st);
+  const stats=ff.window_statistics||{};
+  const water=D.truck_water_demand||{};
+
+  currentWaterLevel = String(water.level || "MEDIUM").toUpperCase();
+  currentDemandIndex = Number(water.demand_index || 0);
+  currentAiFlowLpm = Number(water.estimated_flow_requirement_lpm);
+  if (!Number.isFinite(currentAiFlowLpm) || currentAiFlowLpm <= 0) {
+    currentAiFlowLpm = 0;
+  }
+
+  const markers = ids.map(id=>{
+    const f=firefighters[id], pos=f.position||{x:10,y:20};
+    const mx=Math.max(6,Math.min(94,Number(pos.x||10)));
+    const my=Math.max(6,Math.min(94,100-Number(pos.y||20)));
+    const sel=id===selectedFirefighterId?"selected":"";
+    return `<div class="marker ${statusClass(f.overall_status)} ${sel}" style="left:${mx}%;top:${my}%" onclick="selectFirefighter('${id.replace(/'/g,"")}')"><span class="marker-label">${esc(id)}</span></div>`;
+  }).join("");
+  const map=`<div class="map"><div class="map-label">BUILDING POSITIONS</div><div class="map-badge">${esc(ff.name||selectedFirefighterId||"—")} • Zone ${esc(ff.zone||"—")}</div>${markers}</div>`;
+
+  const recent=results.slice(-10).map(r=>{
+    const a=r.ai_prediction||{}, q=r.risk||{};
+    return `<tr><td>${esc(r.window)}</td><td>${esc(r.timestamp)}</td><td>${esc(a.activity)}</td><td>${esc(a.physiological_state)}</td><td>${esc(a.environment)}</td><td>${esc(q.risk_score)}</td><td><span class="pill ${statusClass(q.local_status)}">${esc(q.local_status)}</span></td></tr>`;
+  }).join("");
+
+  const volRange = water.expected_water_volume_gal_range;
+  const volLRange = water.expected_water_volume_l_range;
+  const durRange = water.expected_duration_seconds_range;
+
+  document.getElementById("app").innerHTML=`
+    ${dangerBanner(D.danger_alerts)}
+    ${firefighterTabs(firefighters)}
+
+    <section class="hero">
+      <article class="card status ${cls}">
+        <div class="label">OVERALL FIREGROUND STATUS</div>
+        <div class="big">${esc(st)}</div>
+        <div class="note">Roster: <strong>${esc(D.roster_size||ids.length)} firefighter(s)</strong> • Alert priority: <strong>${esc(latest?.command_center?.alert_priority||"—")}</strong></div>
+      </article>
+      <article class="card gauge">
+        <div class="label">MAX RISK SCORE (${esc(selectedFirefighterId||"—")})</div>
+        <div class="ring" style="--p:${(results.length?Math.min(5,Math.max(0,Math.max(...results.map(r=>Number(r?.risk?.risk_score||0))))):0)/5*100}%"><div class="ring-in"><strong>${results.length?Math.max(...results.map(r=>Number(r?.risk?.risk_score||0))):0}</strong><span>/ 5</span></div></div>
+      </article>
+      <article class="card meta">
+        <div class="label">LATEST AI WINDOW</div>
+        <div class="latest">Window ${esc(latest.window||"—")} • ${esc(latest.timestamp||"—")}</div>
+        <div class="row"><span>Firefighter</span><strong>${esc(ff.name||"—")} (${esc(selectedFirefighterId||"—")})</strong></div>
+        <div class="row"><span>Zone</span><strong>${esc(zone.zone_id||ff.zone||"—")}</strong></div>
+        <div class="row"><span>Risk event</span><strong>${esc(risk.event_type||"—")}</strong></div>
+      </article>
+    </section>
+
+
+    <section class="water-scenario">
+
+      <article class="card scenario-card">
+        <div class="label">🚒 TRUCK / PUMP OPERATOR — FIRE SUPPRESSION SCENARIO</div>
+        <h2>Current Hose / Nozzle Setup</h2>
+        <div class="note">One water-supply recommendation for the whole incident, sized to the worst reading found anywhere in the building — not per firefighter.</div>
+
+        <div class="scenario-grid">
+
+          <div class="field">
+            <label>HOSE DIAMETER (mm)</label>
+            <input id="hoseDiameter" type="number" min="1" step="0.1">
+          </div>
+
+          <div class="field">
+            <label>HOSE LENGTH (m)</label>
+            <input id="hoseLength" type="number" min="0" step="1">
+          </div>
+
+          <div class="field">
+            <label>NOZZLE TYPE</label>
+            <select id="nozzleType">
+              <option value="Fog">Fog</option>
+              <option value="Smooth Bore">Smooth Bore</option>
+              <option value="Custom">Custom</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>NOZZLE DIAMETER (mm)</label>
+            <input id="nozzleDiameter" type="number" min="1" step="0.1">
+          </div>
+
+          <div class="field">
+            <label>ELEVATION DIFFERENCE (m)</label>
+            <input id="elevation" type="number" step="0.1">
+          </div>
+
+          <div class="field">
+            <label>DISCHARGE COEFFICIENT (Cd)</label>
+            <input id="dischargeCoeff" type="number" min="0.1" max="1.2" step="0.01">
+          </div>
+
+          <div class="field">
+            <label>HAZEN-WILLIAMS C</label>
+            <input id="hwC" type="number" min="50" max="200" step="1">
+          </div>
+
+        </div>
+
+        <button class="calc-btn" onclick="calculateHydraulics()">
+          CALCULATE WATER DETAILS
+        </button>
+
+        <div class="saved-note">
+          ✓ Your last scenario values are saved automatically in this browser
+          and restored when the dashboard is reopened.
+        </div>
+      </article>
+
+      <article class="card hydraulic-card">
+        <div class="label">💧 WATER DETAILS</div>
+        <h2>Building Temperature + Hydraulic Result</h2>
+
+        <div class="hydraulic-result">
+
+          <div class="hydraulic-value">
+            <span>Overall Building Temperature Estimate</span>
+            <strong>${esc(D.overall_fireground_temperature_c ?? "—")}°C</strong>
+          </div>
+
+          <div class="hydraulic-value">
+            <span>AI Water Demand</span>
+            <strong id="waterDemandDisplay">—</strong>
+          </div>
+
+          <div class="hydraulic-value">
+            <span>Demand Index</span>
+            <strong id="demandIndexDisplay">—</strong>
+          </div>
+
+          <div class="hydraulic-value">
+            <span>AI Estimated Flow</span>
+            <strong id="flowDisplay">—</strong>
+          </div>
+
+          <div class="hydraulic-value">
+            <span>Nozzle Type</span>
+            <strong id="nozzleDisplay">—</strong>
+          </div>
+
+          <div class="hydraulic-value">
+            <span>Nozzle Pressure</span>
+            <strong id="nozzlePressureDisplay">—</strong>
+          </div>
+
+          <div class="hydraulic-value">
+            <span>Hose Friction Loss</span>
+            <strong id="frictionDisplay">—</strong>
+          </div>
+
+          <div class="hydraulic-value">
+            <span>Elevation Loss</span>
+            <strong id="elevationDisplay">—</strong>
+          </div>
+
+          <div class="hydraulic-value">
+            <span>Estimated Pump Pressure</span>
+            <strong id="pumpPressureDisplay">—</strong>
+          </div>
+
+          <div class="hydraulic-value">
+            <span>Recommended Configuration</span>
+            <strong>${esc(water.nozzle_config||"—")}</strong>
+          </div>
+
+          <div class="hydraulic-value">
+            <span>Expected Water Volume</span>
+            <strong>${volRange?`${esc(volRange[0])}–${esc(volRange[1])} gal (${esc(volLRange?.[0])}–${esc(volLRange?.[1])} L)`:"—"}</strong>
+          </div>
+
+          <div class="hydraulic-value">
+            <span>Expected Duration</span>
+            <strong>${durRange?`${esc(durRange[0])}–${esc(durRange[1])} s`:"not bounded by reference data"}</strong>
+          </div>
+
+        </div>
+
+        <div class="saved-note">Based on: ${esc(water.based_on||"—")}</div>
+        <div class="saved-note">Reference basis: ${esc(water.reference_basis||"—")}</div>
+
+        <div class="water-warning">
+          ⚠ Prototype/research calculation. AI water demand (flow, volume,
+          duration) is a lookup-table estimate anchored to case-level FSRI
+          live-fire suppression records, not a physics-based or validated
+          prediction for this specific sensor reading. Hydraulic pressure is
+          calculated from the entered scenario parameters. Real field
+          deployment requires validated equipment data, manufacturer
+          specifications, flow testing, and qualified fire-service/hydraulic
+          verification.
+        </div>
+      </article>
+
+    </section>
+
+    <section class="stats">
+      <div class="card stat"><strong>${esc(ff.sensor_samples)}</strong><span>Sensor Samples</span></div>
+      <div class="card stat"><strong>${esc(ff.ai_windows_processed)}</strong><span>AI Windows</span></div>
+      <div class="card stat normal"><strong>${esc(stats.normal||0)}</strong><span>Normal</span></div>
+      <div class="card stat elevated"><strong>${esc(stats.elevated||0)}</strong><span>Elevated</span></div>
+      <div class="card stat high"><strong>${esc(stats.high||0)}</strong><span>High</span></div>
+    </section>
+
+    <section class="card panel">
+      <div class="panel-head"><div><div class="label">MULTITASK VNNX OUTPUT</div><h2>Latest AI Predictions</h2></div><div class="note">Confidence from current inference snapshot</div></div>
+      <div class="pred-grid">
+        <div class="pred"><span class="icon">A</span><div><small>ACTIVITY</small><strong>${esc(ai.activity||"—")}</strong></div><div class="conf">${pct(ai.activity_confidence)}</div></div>
+        <div class="pred"><span class="icon">P</span><div><small>PHYSIOLOGY</small><strong>${esc(ai.physiological_state||"—")}</strong></div><div class="conf">${pct(ai.physiological_confidence)}</div></div>
+        <div class="pred"><span class="icon">E</span><div><small>ENVIRONMENT</small><strong>${esc(ai.environment||"—")}</strong></div><div class="conf">${pct(ai.environment_confidence)}</div></div>
+      </div>
+    </section>
+
+    <section class="card panel">
+      <div class="panel-head"><div><div class="label">SENSOR TELEMETRY</div><h2>9 Sensor Channels — ${esc(ff.name||"—")}</h2></div><div class="note">${esc(ff.data_source||"simulated")} 60-sample stream</div></div>
+      <div class="sensor-grid">${D.sensor_channels.map(ch=>sensorCard(ch, ff.sensor_stream)).join("")}</div>
+    </section>
+
+    <section class="card panel">
+      <div class="panel-head"><div><div class="label">RISK PROGRESSION</div><h2>AI Risk Score Across Windows — ${esc(ff.name||"—")}</h2></div>
+      <div class="legend"><span><i class="n"></i>Normal</span><span><i class="e"></i>Elevated</span><span><i class="h"></i>High</span></div></div>
+      <div class="chart">${riskSvg(results)}</div>
+    </section>
+
+    <section class="card panel">
+      <div class="panel-head"><div><div class="label">COMMAND-CENTER VIEW</div><h2>Firefighter Location</h2></div><div class="note">Assigned building positions (click a marker to select)</div></div>
+      ${map}
+    </section>
+
+    <section class="card panel">
+      <div class="label">RECENT INFERENCE HISTORY</div>
+      <h2>Latest 10 AI Windows — ${esc(ff.name||"—")}</h2>
+      <div class="table-wrap"><table><thead><tr><th>WIN</th><th>TIME</th><th>ACTIVITY</th><th>PHYSIOLOGY</th><th>ENV</th><th>SCORE</th><th>STATUS</th></tr></thead><tbody>${recent}</tbody></table></div>
+    </section>
+
+    <footer>
+      <span><strong>Model:</strong> fireground_v2_V250_ncomp.vnnx</span>
+      <span><strong>Engine:</strong> ${esc(D.inference_engine||"")}</span>
+      <span><strong>Target:</strong> Microchip PolarFire SoC Icicle Kit</span>
+      <span><strong>Mode:</strong> Verified data snapshot</span>
+    </footer>`;
+}
+
+
+function captureWaterForm(){
+  const ids = [
+    "hoseDiameter",
+    "hoseLength",
+    "nozzleType",
+    "nozzleDiameter",
+    "elevation",
+    "dischargeCoeff",
+    "hwC"
+  ];
+
+  const state = {};
+  let found = false;
+
+  for(const id of ids){
+    const el = document.getElementById(id);
+
+    if(el){
+      state[id] = el.value;
+      found = true;
+    }
+  }
+
+  return found ? state : null;
+}
+
+function restoreWaterForm(state){
+  if(!state){
+    restoreWaterSettings();
+    return;
+  }
+
+  for(const [id,value] of Object.entries(state)){
+    setFieldValue(id, value);
+  }
+
+  updateWaterCalculation();
+}
+
+function attachWaterInputListeners(){
+  const ids = [
+    "hoseDiameter",
+    "hoseLength",
+    "nozzleType",
+    "nozzleDiameter",
+    "elevation",
+    "dischargeCoeff",
+    "hwC"
+  ];
+
+  for(const id of ids){
+    const el = document.getElementById(id);
+
+    if(el && !el.dataset.listenerAttached){
+      // Recalculate live as the value changes (typing a number, or picking
+      // a nozzle type) instead of requiring the button click.
+      // updateWaterCalculation() also saves the settings internally.
+      el.addEventListener("input", updateWaterCalculation);
+      el.addEventListener("change", updateWaterCalculation);
+      el.dataset.listenerAttached = "1";
+    }
+  }
+}
+
+async function loadLive(){
+  const waterFormState = captureWaterForm();
+
+  try{
+    let r;
+
+    if(
+      location.hostname !== "localhost" &&
+      location.hostname !== "127.0.0.1"
+    ){
+      r = await fetch(
+        "/api/latest?ts=" + Date.now(),
+        {cache:"no-store"}
+      );
+    }
+
+    if(!r || !r.ok){
+      r = await fetch(
+        "/results/live_vnnx_fireground_result.json?ts=" + Date.now(),
+        {cache:"no-store"}
+      );
+    }
+
+    if(!r.ok){
+      throw new Error(
+        "Live VNNX result file is not available yet."
+      );
+    }
+
+    D = await r.json();
+
+    // Do NOT rebuild the dashboard while the user is typing
+    // in a water-scenario field. Rebuilding the DOM here would
+    // interrupt multi-digit input such as 65 or 120.
+    const active = document.activeElement;
+
+    const waterInputIds = [
+      "hoseDiameter",
+      "hoseLength",
+      "nozzleType",
+      "nozzleDiameter",
+      "elevation",
+      "dischargeCoeff",
+      "hwC"
+    ];
+
+    const editingWaterField =
+      active && waterInputIds.includes(active.id);
+
+    if(!editingWaterField){
+
+      // Rebuild live dashboard only when the user is not typing.
+      render();
+
+      // Restore whatever values the user previously entered.
+      restoreWaterForm(waterFormState);
+
+      // Make changes persist for the next visit.
+      attachWaterInputListeners();
+    }
+
+  }catch(err){
+
+    document.getElementById("app").innerHTML =
+      `<div class="card panel">
+        <h2>Waiting for live VNNX data</h2>
+        <p class="note">${esc(err.message)}</p>
+        <p class="note">
+          Run the Fireground AI VNNX live pipeline first.
+        </p>
+      </div>`;
+  }
+}
+loadLive();
+setInterval(loadLive, 2000);
+</script>
+</body>
+</html>
