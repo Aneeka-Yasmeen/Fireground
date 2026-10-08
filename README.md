@@ -1,94 +1,68 @@
-# FIREGROUND AI
+# 🔥 FIREGROUND AI
 
-## Project Overview
+## AI-Based Firefighter Monitoring and Risk Assessment System
 
 Fireground AI is a software prototype for monitoring firefighter conditions using sensor data and a multitask AI model.
 
-The system analyzes:
-- Activity
-- Physiological state
-- Environmental condition
+The system analyzes three major conditions:
 
-The AI outputs are passed to a risk decision engine that produces:
-- NORMAL
-- ELEVATED
-- HIGH
+- **Activity**
+- **Physiological State**
+- **Environmental Condition**
 
-## Target Platform
+The AI outputs are passed to a **Risk Decision Engine**, which produces one of three risk levels:
 
-Microchip PolarFire SoC Icicle Kit
+- 🟢 **NORMAL**
+- 🟡 **ELEVATED**
+- 🔴 **HIGH**
 
-## Current Implementation
+---
 
-Software-only implementation using:
-- Python
-- TensorFlow/Keras
-- NumPy
-- INT8 quantization
-- Microchip VectorBlox SDK
-- VNNX model
-- VectorBlox C simulator
+## 🚨 Problem Statement
 
+Firefighters working in fireground environments are exposed to continuously changing physical and environmental conditions. During an operation, changes in firefighter activity, physiological state, and surrounding environmental conditions can increase the level of risk.
 
-## AI Pipeline
+Without continuous monitoring and timely identification of these conditions, it can be difficult to determine the firefighter's current risk level.
 
-Sensor data
-    ↓
-10-sample sliding window
-    ↓
+Therefore, there is a need for an AI-based monitoring system that can process sensor data, identify activity, physiological state, and environmental condition, and combine these outputs to determine an overall risk level.
+
+**Fireground AI** addresses this problem by using a multitask AI model and a Risk Decision Engine to classify the firefighter's condition as **NORMAL, ELEVATED, or HIGH**.
+
+---
+
+## 📌 Project Overview
+
+Fireground AI is designed to monitor firefighter conditions using sensor data and artificial intelligence.
+
+The system processes sensor information using a **10-sample sliding window**. The processed data is passed through the AI model to identify:
+
+1. Firefighter activity
+2. Physiological state
+3. Environmental condition
+
+These outputs are then evaluated by the Risk Decision Engine to determine the overall firefighter risk status.
+
+### Overall System Flow
+
+```text
+Sensor Data
+     ↓
+10-Sample Sliding Window
+     ↓
 Preprocessing
-    ↓
-INT8 quantization
-    ↓
-VNNX AI inference
-    ↓
-Activity + Physiology + Environment
-    ↓
+     ↓
+INT8 Quantization
+     ↓
+AI Inference
+     ↓
+┌──────────────────────────────┐
+│ Activity                     │
+│ Physiological State          │
+│ Environmental Condition      │
+└──────────────────────────────┘
+     ↓
 Risk Decision Engine
-    ↓
+     ↓
 NORMAL / ELEVATED / HIGH
-
-## Model Outputs
-
-### Activity
-- 0 = crawling
-- 1 = standing
-- 2 = walking
-
-### Physiological State
-- 0 = elevated
-- 1 = high
-- 2 = normal
-
-### Environment
-- 0 = normal
-- 1 = risk
-
-## Live Simulation
-
-Input:
-- 60 sensor samples
-- 51 sliding windows
-
-Current result:
-- 37 NORMAL windows
-- 14 ELEVATED windows
-- 0 HIGH windows
-- Overall status: ELEVATED
-
-## Important Files
-
-- VNNX model: models/fireground_v2_V250_ncomp.vnnx
-- Live result: results/live_vnnx_fireground_result.json
-- Dashboard: dashboard/fireground_dashboard.py
-- Risk graph: results/fireground_risk_progression.png
-- Architecture diagram: assets/rtosf.png
-
-## Run the Dashboard
-
-python3 dashboard/fireground_dashboard.py
-
-## Run the Complete VNNX Simulation
-
-source /home/arvind/VectorBlox-SDK/setup_vars.sh
-python3 src/live_vnnx_fireground_system.py
+     ↓
+Dashboard
