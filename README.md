@@ -29,7 +29,6 @@ Software-only implementation using:
 - VNNX model
 - VectorBlox C simulator
 
-No physical hardware is currently available.
 
 ## AI Pipeline
 
