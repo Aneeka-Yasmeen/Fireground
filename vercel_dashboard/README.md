@@ -12,19 +12,14 @@ Fireground AI project result and the 60-sample live sensor stream.
 
 ## Deploy from GitHub
 
-Import the `ARVIND2006-hub/Fireground_AI` repository in Vercel and set
-the Root Directory to this folder (`vercel_dashboard`) after it is added
-to the repository.
+Import the `Aneeka-Yasmeen/Fireground` repository in Vercel and set the Root Directory to this folder (`vercel_dashboard`) after it is added to the repository.
 
 ## Data model
 
-The dashboard currently displays the verified result snapshot stored in:
-`data/dashboard_data.json`.
+The dashboard reads live results from `GET /api/latest`, which serves whatever was most recently written to Vercel Blob storage by `POST /api/update`. 
 
-It is intentionally a static snapshot. The VNNX inference continues to
-run on the local/target environment; it is not executed inside Vercel.
-For truly live online updates, the inference system would need to publish
-fresh result data to a web-accessible API/database/object store.
+The inference pipeline (`src/live_vnnx_fireground_system_liveweb_v2.py`, via `src/vercel_publisher.py`)
+pushes a fresh result snapshot to that endpoint after each run — see the root `README.md`'s "Running the demo" section and `.fireground.env.example` for how to configure the pipeline to publish to your deployed instance.
 
 
 
