@@ -7,7 +7,7 @@
 // outputs against the values computed independently in Python
 // (fpga_accelerator/tools/export_weights_fixedpoint.py, which itself
 // agreed with the float32 Keras model on all 200 held-out test windows --
-// see sim/expected_output.json).
+// see sim/expected_output.json). 
 //
 //
 // Expected result for sim/test_input.hex (from expected_output.json):
