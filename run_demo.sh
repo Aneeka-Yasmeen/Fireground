@@ -20,7 +20,7 @@ echo "        FIREGROUND AI DEMONSTRATION"
 echo "=============================================="
 echo
 
-"$PYTHON" src/live_vnnx_fireground_system_liveweb_v2.py
+"$PYTHON" src/live_vnnx_fireground_system_liveweb.py
 
 echo
 echo "=============================================="
