@@ -18,7 +18,7 @@ Import the `Aneeka-Yasmeen/Fireground` repository in Vercel and set the Root Dir
 
 The dashboard reads live results from `GET /api/latest`, which serves whatever was most recently written to Vercel Blob storage by `POST /api/update`. 
 
-The inference pipeline (`src/live_vnnx_fireground_system_liveweb_v2.py`, via `src/vercel_publisher.py`)
+The inference pipeline (`src/live_fireground_system.py`, via `src/vercel_publisher.py`)
 pushes a fresh result snapshot to that endpoint after each run — see the root `README.md`'s "Running the demo" section and `.fireground.env.example` for how to configure the pipeline to publish to your deployed instance.
 
 

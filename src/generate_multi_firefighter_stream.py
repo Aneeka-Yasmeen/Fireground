@@ -7,7 +7,7 @@ structural change.
 
 Value ranges follow the same style as generate_live_stream.py (which this
 replaces for multi-firefighter use) and stay within the distribution the
-CNN was trained on (see MEAN/SCALE in live_vnnx_fireground_system_liveweb.py).
+CNN was trained on (see MEAN/SCALE in live_fireground_system.py).
 """
 import csv
 import json

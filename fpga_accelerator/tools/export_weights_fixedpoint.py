@@ -1,5 +1,5 @@
 """
-Export the trained multitask_fireground_cnn_v2 weights to fixed-point
+Export the trained multitask_fireground_cnn weights to fixed-point
 (Q4.11, 16-bit signed) hex files for RTL $readmemh, and validate that the
 fixed-point math still classifies correctly before any RTL is written.
 

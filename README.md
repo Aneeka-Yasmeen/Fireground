@@ -79,7 +79,7 @@ bugs found along the way, and what was and wasn’t verified: fpga_accelerator/d
  ---
 ## Folder structure
 src/ pipeline: data generation, model training, live inference, dashboard publishing
-models/ trained model (multitask_fireground_cnn_v2.keras) and its scaler
+models/ trained model (multitask_fireground_cnn.keras) and its scaler
 dataset/ firefighter registry, FSRI reference dataset, synthetic demo sensor stream
 fpga_accelerator/ the FPGA CNN accelerator: RTL, testbench, weight export, verification report
 vercel_dashboard/ the live dashboard (per-firefighter view + aggregate water demand)

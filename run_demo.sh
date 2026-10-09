@@ -3,7 +3,7 @@
 # water-demand prototype -> results JSON, then serves the web dashboard.
 #
 # Inference uses TensorFlow/Keras directly against
-# models/multitask_fireground_cnn_v2.keras (see src/live_fireground_system.py).
+# models/multitask_fireground_cnn.keras (see src/live_fireground_system.py).
 set -e
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
