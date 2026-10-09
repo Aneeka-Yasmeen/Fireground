@@ -1,10 +1,18 @@
-# FIREGROUND AI
+# Fireground AI
+
+Multitask-CNN-based firefighter risk monitoring, accelerated in custom FPGA RTL on a
+Microchip PolarFire SoC Icicle Kit. Built for the 2026 PolarFire FPGA Design Contest —
+Edge Intelligence track.
+
+**Status: v1.** The pipeline, dashboard, and FPGA accelerator below are working end to
+end today. This is a first version, not a finished product — see "What's next" below
+for what's planned on top of it.
 
 ## AI-Based Firefighter Safety Monitoring and Risk Assessment System
 
 FIREGROUND AI is an AI-based firefighter monitoring system designed to analyze sensor data collected from a firefighter during fireground operations.
 
-The system uses a **multitask AI model** to identify three important aspects of the firefighter's condition:
+Each firefighter wears a sensor node reporting 9 channels (heart rate, 3-axis accelerometer, 3-axis gyroscope, gas, temperature). A rolling 10-sample window of that data is fed through a **multitask 1D CNN model** that classifies the following three things at once:
 
 - **Activity**
 - **Physiological state**
@@ -14,23 +22,23 @@ The outputs from these AI tasks are combined by a **Risk Decision Engine**, whic
 
 **NORMAL → ELEVATED → HIGH**
 
+A dashboard shows every firefighter's status individually, and separately produces one aggregate truck/pump-operator water-demand recommendation sized to the worst reading found anywhere on scene.
+
 The project is developed as a software prototype with the target of deploying the AI processing on the **Microchip PolarFire SoC Icicle Kit**.
 
 ---
 
-# 1. Problem Statement
+# The problem: Firefighter safety is a real-time, multi-variable decision problem
 
-Firefighters working in fireground environments are exposed to continuously changing physical and environmental conditions. During an operation, changes in firefighter activity, physiological state, and surrounding environmental conditions can increase the level of risk.
+Firefighters operate in environments where several hazards can develop simultaneously. Toxic gases can impair a firefighter, extreme temperatures can cause heat stress, smoke and structural damage can restrict movement, and intense physical exertion can lead to exhaustion or incapacitation. These conditions may change rapidly, while commanders outside the structure have limited direct visibility into each firefighter's condition.
 
-Without continuous monitoring and timely identification of these conditions, it can be difficult to determine the firefighter's current risk level.
+The problem is not simply that firefighters lack sensors. The deeper problem is that measurements of a firefighter's physical condition, movement, and surrounding environment must be interpreted together and communicated to the command team in time to act.
 
-Therefore, there is a need for an AI-based monitoring system that can process sensor data, identify activity, physiological state, and environmental condition, and combine these outputs to determine an overall risk level.
-
-**Fireground AI** addresses this problem by using a multitask AI model and a risk decision engine to classify the firefighter's condition as **NORMAL, ELEVATED, or HIGH**.
+For example, an elevated heart rate could be a normal response to strenuous activity. However, if it occurs alongside rising temperature, hazardous gas exposure, and a change from walking to crawling, the combination may indicate a developing emergency. Interpreting these signals independently can miss the significance of their combined pattern.
 
 ---
 
-# 2. Project Objectives
+# Project Objectives
 
 The main objectives of FIREGROUND AI are:
 
@@ -46,6 +54,34 @@ The main objectives of FIREGROUND AI are:
 10. Prepare the system for deployment on the Microchip PolarFire SoC Icicle Kit.
 
 ---
+## About the dataset
+
+The sensor streams this version runs on are synthetically generated
+(`src/generate_multi_firefighter_stream.py` for the live demo,
+`src/generate_multitask_data.py` for model training) — they are not recordings from
+real firefighters or real incidents. The one real-world data source in this project is
+`dataset/fireground_ai_reference_dataset.csv`, extracted from FSRI (Fire Safety
+Research Institute) live-fire case studies; the truck-level water-demand numbers are
+anchored to that, not to the synthetic sensor data. Replacing the synthetic streams
+with real wearable sensor data is the biggest gap between this prototype and a
+deployable system.
+
+---
+The trained model above is reimplemented as synthesizable Verilog and was synthesized
+in Microchip Libero SoC 2026.1 (Synplify Pro) targeting the MPFS250T-FCVG484E: 5,382
+LUTs, 434 sequential elements, 3 DSP blocks, 13 Block RAMs, ~39.2 MHz, roughly 2% of
+the device — a single-lane proof of concept, not the final utilization figure (the
+final design replicates this lane once per firefighter). Full methodology, the real
+bugs found along the way, and what was and wasn’t verified: fpga_accelerator/docs/DESIGN_NOTES.md.
+
+What’s next
+
+This is v1. Planned for later versions:
+
+Real wearable sensor hardware in place of the synthetic stream
+RISC-V-side coordination on the PolarFire SoC (currently host-side software)
+Multi-hop mesh networking and PUF-based tamper-resistant firmware
+Parallel per-firefighter inference lanes on the FPGA fabric
 
 # 3. System Overview
 
@@ -106,3 +142,7 @@ The overall system follows the pipeline:
        │ ELEVATED        │
        │ HIGH            │
        └─────────────────┘
+
+The FPGA accelerator
+
+
