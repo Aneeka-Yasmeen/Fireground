@@ -144,8 +144,9 @@ The overall system follows the pipeline:
        │ NORMAL          │
        │ ELEVATED        │
        │ HIGH            │
-       └─────────────────┘ ```
+       └─────────────────┘ 
 
+```
 ---
 
 What’s next
