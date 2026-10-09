@@ -12,15 +12,25 @@ Synplify synthesis log) are in `docs/DESIGN_NOTES.md`.
 
 fpga_accelerator/
 ├── rtl/
+
 │ └── fireground_cnn_top.v the accelerator (single file, no sub-modules)
+
 ├── weights/
+
 │ ├── conv1_w.hex, conv1_b.hex conv1D layer 1 (9->16ch, kernel 3)
+
 │ ├── conv2_w.hex, conv2_b.hex conv1D layer 2 (16->32ch, kernel 3)
+
 │ ├── dense_w.hex, dense_b.hex shared dense layer (32->32)
+
 │ ├── act_w.hex, act_b.hex activity head (32->3)
+
 │ ├── env_w.hex, env_b.hex environment head (32->2)
+
 │ ├── phy_w.hex, phy_b.hex physiological head (32->3)
+
 │ └── quant_format.json the fixed-point format these were quantized to
+
 ├── sim/
 │ ├── tb_fireground_cnn_top.v self-checking testbench
 │ ├── test_input.hex one real test-set sensor window, pre-quantized
