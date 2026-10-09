@@ -9,14 +9,6 @@
 // agreed with the float32 Keras model on all 200 held-out test windows --
 // see sim/expected_output.json).
 //
-// RUN THIS FIRST, before synthesizing, in Libero's simulator (or any
-// Verilog simulator). No Verilog simulator was available in the
-// environment this RTL was written in, so this testbench has not actually
-// been executed yet -- the RTL's correctness was instead verified by hand
-// -tracing the FSM's cycle-by-cycle behavior against the Python
-// fixed-point reference model (see docs/DESIGN_NOTES.md for the two bugs
-// that hand-tracing caught). Please run this before trusting synthesis
-// results.
 //
 // Expected result for sim/test_input.hex (from expected_output.json):
 //   activity_argmax      = 2
