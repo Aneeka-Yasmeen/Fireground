@@ -9,7 +9,7 @@ Full verification methodology, design trade-offs, and the real synthesis results
 Synplify synthesis log) are in `docs/DESIGN_NOTES.md`.
 
 ## Folder contents
-
+```
 fpga_accelerator/
 ├── rtl/
 │   └── fireground_cnn_top.v       # The accelerator (single file, no sub-modules)
@@ -32,6 +32,7 @@ fpga_accelerator/
     │                                     # checked against all 200 held-out test windows
     └── docs/
         └── DESIGN_NOTES.md        # Verification report and design rationale
+ ```       
 ## Synthesis setup and result
 
 This core was imported into a fresh Libero SoC 2026.1 project targeting the
