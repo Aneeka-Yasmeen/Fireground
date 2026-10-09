@@ -1,27 +1,18 @@
 #!/usr/bin/env python3
 """Fireground AI multitask CNN inference with live localhost + Vercel publishing.
 
-Inference engine note:
-    The original design runs the INT8-quantized model through the Microchip
-    VectorBlox VNNX C simulator (a custom "sim-run-sensor" binary built against
-    the VectorBlox SDK). That binary is machine-specific build output and is not
-    part of this repository, so on environments where it hasn't been built this
-    script instead runs the same trained multitask CNN directly through
-    TensorFlow/Keras (models/multitask_fireground_cnn_v2.keras). The model
-    architecture, weights, label mapping, and every downstream calculation
-    (risk engine, water-demand prototype, hydraulic values) are unchanged --
-    only the execution engine for the forward pass differs. If a VNNX simulator
-    binary is available, set FIREGROUND_VNNX_SIMULATOR to its path and this
-    script will use it instead.
+Loads the trained multitask CNN (models/multitask_fireground_cnn_v2.keras) directly
+through TensorFlow/Keras, runs it over every firefighter's sensor stream from
+dataset/firefighter_registry.json, and produces per-firefighter risk status plus one
+aggregate truck/pump-operator water-demand recommendation sized to the worst reading
+found anywhere on the roster. Results are written locally and optionally published to
+a live dashboard (see vercel_publisher.py and .fireground.env.example).
 """
 
 import csv
 import json
 import os
-import re
-import subprocess
 import sys
-import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -37,17 +28,11 @@ from vercel_publisher import publish
 REGISTRY_PATH = str(PROJECT / "dataset" / "firefighter_registry.json")
 DATA_PATH = str(PROJECT / "dataset" / "live_sensor_stream_multi.csv")
 KERAS_MODEL_PATH = str(PROJECT / "models" / "multitask_fireground_cnn_v2.keras")
-VNNX_MODEL_PATH = str(PROJECT / "models" / "fireground_v2_V250_ncomp.vnnx")
-SIMULATOR = os.environ.get("FIREGROUND_VNNX_SIMULATOR", "").strip()
-OUTPUT_PATH = str(PROJECT / "results" / "live_vnnx_fireground_result.json")
+OUTPUT_PATH = str(PROJECT / "results" / "live_fireground_result.json")
 WINDOW_SIZE = 10
 FEATURES = ["heart_rate","acc_x","acc_y","acc_z","gyro_x","gyro_y","gyro_z","gas","temperature"]
 MEAN = [91.1068859,0.266849514,0.268908626,9.66666423,0.0322428436,0.0323018356,0.0324732444,27.0979919,31.1267252]
 SCALE = [13.34430666,0.13700957,0.13697954,0.1158999,0.02163363,0.02163962,0.02157665,11.87917055,1.93309766]
-Q_SCALE = 0.028781553730368614
-Q_ZERO = -5
-OUT_SCALE = 0.00390625
-OUT_ZERO = -128
 ACTIVITY_LABELS = ["crawling","standing","walking"]
 PHYSIOLOGICAL_LABELS = ["elevated","high","normal"]
 ENVIRONMENT_LABELS = ["normal","risk"]
@@ -59,54 +44,7 @@ def standardize_window(window):
     return [[(v - MEAN[j]) / SCALE[j] for j, v in enumerate(row)] for row in window]
 
 
-def quantize_window(window):
-    return [[max(-128, min(127, int(round(((v-MEAN[j])/SCALE[j])/Q_SCALE+Q_ZERO)))) for j, v in enumerate(row)] for row in window]
-
-
-def write_bin(qw, path):
-    with open(path, "wb") as f:
-        f.write(bytes((v + 256) % 256 for row in qw for v in row))
-
-
-def prob(q):
-    return max(0.0, min(1.0, (q - OUT_ZERO) * OUT_SCALE))
-
-
-def run_vnnx(window):
-    fd, bp = tempfile.mkstemp(suffix=".bin")
-    os.close(fd)
-    try:
-        write_bin(quantize_window(window), bp)
-        p = subprocess.run([SIMULATOR, VNNX_MODEL_PATH, bp], capture_output=True, text=True, check=False)
-    finally:
-        try:
-            os.remove(bp)
-        except OSError:
-            pass
-    if p.returncode != 0:
-        raise RuntimeError("VNNX simulator failed.\n" + p.stdout + "\n" + p.stderr)
-    text = p.stdout
-    specs = {"activity": ("Activity output", 3), "physiological": ("Physiological output", 3), "environment": ("Environment output", 2)}
-    out = {}
-    for name, (hdr, n) in specs.items():
-        s = text.find(hdr)
-        if s < 0:
-            raise RuntimeError("Missing " + hdr)
-        e = len(text)
-        for oh, _ in specs.values():
-            if oh != hdr:
-                pos = text.find(oh, s + len(hdr))
-                if pos >= 0:
-                    e = min(e, pos)
-        vals = [int(x) for x in re.findall(r"Class\s+\d+\s+:\s+(-?\d+)", text[s:e])]
-        if len(vals) != n:
-            raise RuntimeError(f"{name}: expected {n} values, found {len(vals)}")
-        idx = max(range(n), key=lambda i: vals[i])
-        out[name] = {"class_index": idx, "confidence": prob(vals[idx])}
-    return out
-
-
-def run_keras(window):
+def run_inference(window):
     global _KERAS_MODEL
     import numpy as np
     import keras
@@ -122,12 +60,6 @@ def run_keras(window):
         idx = int(probs.argmax())
         out[name] = {"class_index": idx, "confidence": float(probs[idx])}
     return out
-
-
-def run_inference(window):
-    if SIMULATOR:
-        return run_vnnx(window)
-    return run_keras(window)
 
 
 def risk_score(a, e, p):
@@ -150,7 +82,6 @@ def event(a, e, p):
 
 def sensor_payload(rows):
     return [{k: (r[k] if k == "timestamp" else float(r[k])) for k in ["timestamp"] + FEATURES} for r in rows]
-
 
 
 def local_fireground_summary(window_rows, score):
@@ -514,12 +445,7 @@ def write_payload(firefighters_out, registry):
 
     return {
         "system": "Fireground AI",
-        "inference_engine": (
-            "Microchip VectorBlox VNNX simulator"
-            if SIMULATOR else
-            "TensorFlow/Keras direct inference (multitask_fireground_cnn_v2.keras) "
-            "-- VNNX simulator binary not available in this environment"
-        ),
+        "inference_engine": "TensorFlow/Keras direct inference (multitask_fireground_cnn_v2.keras)",
         "generated_at": datetime.now().isoformat(),
         "window_size": WINDOW_SIZE,
         "roster_size": len(registry),
@@ -541,8 +467,7 @@ def write_payload(firefighters_out, registry):
 
 
 def main():
-    required = [DATA_PATH, REGISTRY_PATH, SIMULATOR, VNNX_MODEL_PATH] if SIMULATOR else [DATA_PATH, REGISTRY_PATH, KERAS_MODEL_PATH]
-    for path in required:
+    for path in (DATA_PATH, REGISTRY_PATH, KERAS_MODEL_PATH):
         if not os.path.exists(path):
             raise FileNotFoundError(path)
 
