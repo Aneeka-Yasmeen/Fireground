@@ -3,7 +3,7 @@
 ## What this is
 
 A first hardware accelerator for the trained multitask 1D-CNN
-(`models/multitask_fireground_cnn_v2.keras`) that the Fireground AI software pipeline
+(`models/multitask_fireground_cnn.keras`) that the Fireground AI software pipeline
 already runs in TensorFlow. Same architecture, same trained weights, same
 classification behaviour — implemented as synthesizable Verilog instead of a
 Python/TensorFlow forward pass.

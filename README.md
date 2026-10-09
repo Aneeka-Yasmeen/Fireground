@@ -113,7 +113,7 @@ The overall system follows the pipeline:
 │   Preprocessing      │
 │                      │
 │ Scaling / Formatting │
-│ INT8 Quantization    │
+│ Q4.11 Fixed-Point Quantization    │
 └──────────┬───────────┘
            │
            ▼

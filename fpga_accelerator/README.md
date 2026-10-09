@@ -1,7 +1,7 @@
 # Fireground AI — CNN hardware accelerator
 
 Synthesizable Verilog implementation of the trained multitask 1D-CNN
-(`models/multitask_fireground_cnn_v2.keras`) — the same model the software pipeline
+(`models/multitask_fireground_cnn.keras`) — the same model the software pipeline
 runs in TensorFlow, reimplemented as RTL and synthesized for Microchip Libero SoC.
 
 Full verification methodology, design trade-offs, and the real synthesis results

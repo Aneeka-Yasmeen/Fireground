@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fireground AI multitask CNN inference with live localhost + Vercel publishing.
 
-Loads the trained multitask CNN (models/multitask_fireground_cnn_v2.keras) directly
+Loads the trained multitask CNN (models/multitask_fireground_cnn.keras) directly
 through TensorFlow/Keras, runs it over every firefighter's sensor stream from
 dataset/firefighter_registry.json, and produces per-firefighter risk status plus one
 aggregate truck/pump-operator water-demand recommendation sized to the worst reading
@@ -27,7 +27,7 @@ from vercel_publisher import publish
 
 REGISTRY_PATH = str(PROJECT / "dataset" / "firefighter_registry.json")
 DATA_PATH = str(PROJECT / "dataset" / "live_sensor_stream_multi.csv")
-KERAS_MODEL_PATH = str(PROJECT / "models" / "multitask_fireground_cnn_v2.keras")
+KERAS_MODEL_PATH = str(PROJECT / "models" / "multitask_fireground_cnn.keras")
 OUTPUT_PATH = str(PROJECT / "results" / "live_fireground_result.json")
 WINDOW_SIZE = 10
 FEATURES = ["heart_rate","acc_x","acc_y","acc_z","gyro_x","gyro_y","gyro_z","gas","temperature"]
@@ -445,7 +445,7 @@ def write_payload(firefighters_out, registry):
 
     return {
         "system": "Fireground AI",
-        "inference_engine": "TensorFlow/Keras direct inference (multitask_fireground_cnn_v2.keras)",
+        "inference_engine": "TensorFlow/Keras direct inference (multitask_fireground_cnn.keras)",
         "generated_at": datetime.now().isoformat(),
         "window_size": WINDOW_SIZE,
         "roster_size": len(registry),

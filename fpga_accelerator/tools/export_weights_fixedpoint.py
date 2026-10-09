@@ -14,7 +14,7 @@ Chosen because:
       model) -- comfortably inside Q4.11 with several bits of headroom
       before the integer part is ever touched
     - standardized sensor inputs fall in [-3.3, 4.0] (checked against
-      dataset/v2_prepared/X_test.npy) -- also comfortably inside range
+      dataset/prepared/X_test.npy) -- also comfortably inside range
     - using ONE format everywhere (rather than a different scale per
       layer) keeps the multiply-accumulate hardware uniform and simple
       to verify by hand; the trade-off is weight precision is lower than
@@ -117,7 +117,7 @@ def main():
     OUT_WEIGHTS.mkdir(parents=True, exist_ok=True)
     OUT_SIM.mkdir(parents=True, exist_ok=True)
 
-    model = keras.models.load_model(str(PROJECT / "models" / "multitask_fireground_cnn_v2.keras"))
+    model = keras.models.load_model(str(PROJECT / "models" / "multitask_fireground_cnn.keras"))
     layers = {l.name: l for l in model.layers}
 
     conv1_w, conv1_b = layers["conv1"].get_weights()
@@ -147,10 +147,10 @@ def main():
     # Validate: run the fixed-point pipeline on the real test set and
     # compare classification (argmax) against the float32 Keras model.
     # ------------------------------------------------------------------
-    X_test = np.load(PROJECT / "dataset" / "v2_prepared" / "X_test.npy")
-    ya_test = np.load(PROJECT / "dataset" / "v2_prepared" / "y_activity_test.npy")
-    ye_test = np.load(PROJECT / "dataset" / "v2_prepared" / "y_environment_test.npy")
-    yp_test = np.load(PROJECT / "dataset" / "v2_prepared" / "y_physiological_test.npy")
+    X_test = np.load(PROJECT / "dataset" / "prepared" / "X_test.npy")
+    ya_test = np.load(PROJECT / "dataset" / "prepared" / "y_activity_test.npy")
+    ye_test = np.load(PROJECT / "dataset" / "prepared" / "y_environment_test.npy")
+    yp_test = np.load(PROJECT / "dataset" / "prepared" / "y_physiological_test.npy")
 
     float_preds = model.predict(X_test, verbose=0)
     float_a = float_preds[0].argmax(axis=1)

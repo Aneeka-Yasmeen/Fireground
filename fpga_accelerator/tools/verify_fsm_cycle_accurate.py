@@ -325,8 +325,8 @@ def main():
 
     sys.path.insert(0, str(PROJECT / "cnn_env" / "Lib" / "site-packages"))
     import keras
-    model = keras.models.load_model(str(PROJECT / "models" / "multitask_fireground_cnn_v2.keras"))
-    X_test = np.load(PROJECT / "dataset" / "v2_prepared" / "X_test.npy")
+    model = keras.models.load_model(str(PROJECT / "models" / "multitask_fireground_cnn.keras"))
+    X_test = np.load(PROJECT / "dataset" / "prepared" / "X_test.npy")
     float_preds = model.predict(X_test, verbose=0)
     float_a = float_preds[0].argmax(axis=1)
     float_e = float_preds[1].argmax(axis=1)

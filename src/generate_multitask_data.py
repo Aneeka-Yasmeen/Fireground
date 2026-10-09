@@ -327,7 +327,7 @@ df = pd.DataFrame(rows)
 
 output_path = (
     "../dataset/"
-    "multitask_training_data_v2.csv"
+    "multitask_training_data.csv"
 )
 
 df.to_csv(
