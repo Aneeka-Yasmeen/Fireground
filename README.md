@@ -67,6 +67,8 @@ with real wearable sensor data is the biggest gap between this prototype and a
 deployable system.
 
 ---
+## The FPGA accelerator
+
 The trained model above is reimplemented as synthesizable Verilog and was synthesized
 in Microchip Libero SoC 2026.1 (Synplify Pro) targeting the MPFS250T-FCVG484E: 5,382
 LUTs, 434 sequential elements, 3 DSP blocks, 13 Block RAMs, ~39.2 MHz, roughly 2% of
@@ -74,20 +76,21 @@ the device — a single-lane proof of concept, not the final utilization figure 
 final design replicates this lane once per firefighter). Full methodology, the real
 bugs found along the way, and what was and wasn’t verified: fpga_accelerator/docs/DESIGN_NOTES.md.
 
-What’s next
+ ---
+## Folder structure
+src/ pipeline: data generation, model training, live inference, dashboard publishing
+models/ trained model (multitask_fireground_cnn_v2.keras) and its scaler
+dataset/ firefighter registry, FSRI reference dataset, synthetic demo sensor stream
+fpga_accelerator/ the FPGA CNN accelerator: RTL, testbench, weight export, verification report
+vercel_dashboard/ the live dashboard (per-firefighter view + aggregate water demand)
 
-This is v1. Planned for later versions:
-
-Real wearable sensor hardware in place of the synthetic stream
-RISC-V-side coordination on the PolarFire SoC (currently host-side software)
-Multi-hop mesh networking and PUF-based tamper-resistant firmware
-Parallel per-firefighter inference lanes on the FPGA fabric
+---
 
 # 3. System Overview
 
 The overall system follows the pipeline:
 
-```text
+
 ┌──────────────────────┐
 │    Sensor Data       │
 │                      │
@@ -141,8 +144,16 @@ The overall system follows the pipeline:
        │ NORMAL          │
        │ ELEVATED        │
        │ HIGH            │
-       └─────────────────┘
+       └─────────────────┘ 
 
-The FPGA accelerator
+---
 
+What’s next
+
+This is v1. Planned for later versions:
+
+Real wearable sensor hardware in place of the synthetic stream
+RISC-V-side coordination on the PolarFire SoC (currently host-side software)
+Multi-hop mesh networking and PUF-based tamper-resistant firmware
+Parallel per-firefighter inference lanes on the FPGA fabric
 
