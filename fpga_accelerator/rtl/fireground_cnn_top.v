@@ -2,7 +2,7 @@
 // fireground_cnn_top.v
 //
 // Sequential (single-MAC) hardware accelerator for the trained
-// "Fireground AI" multitask 1D-CNN (models/multitask_fireground_cnn_v2.keras).
+// "Fireground AI" multitask 1D-CNN (models/multitask_fireground_cnn.keras).
 //
 // Pipeline (matches src/train_multitask_v2.py exactly):
 //   input (10 timesteps x 9 sensor channels)
