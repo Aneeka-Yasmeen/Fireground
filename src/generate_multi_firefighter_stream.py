@@ -1,15 +1,13 @@
-"""Generate simulated 60-sample, 9-channel sensor streams for each firefighter
+"""Generates simulated 60-sample, 9-channel sensor streams for each firefighter
 in dataset/firefighter_registry.json.
 
-No hardware sensors exist yet (per project status). This produces
-demo/architecture data only -- clearly not real firefighter readings --
-so the multi-firefighter pipeline and dashboard can be built and tested
+This produces demo/architecture data only so the multi-firefighter pipeline and dashboard can be built and tested
 now, ready to be swapped for real per-person streams later without any
 structural change.
 
 Value ranges follow the same style as generate_live_stream.py (which this
 replaces for multi-firefighter use) and stay within the distribution the
-CNN was trained on (see MEAN/SCALE in live_vnnx_fireground_system_liveweb_v2.py).
+CNN was trained on (see MEAN/SCALE in live_vnnx_fireground_system_liveweb.py).
 """
 import csv
 import json
