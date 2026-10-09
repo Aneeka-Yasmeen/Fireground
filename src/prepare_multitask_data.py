@@ -13,9 +13,9 @@ from sklearn.preprocessing import StandardScaler
 
 INPUT_PATH = "../dataset/multitask_training_data_v2.csv"
 
-OUTPUT_DIR = "../dataset/v2_prepared"
+OUTPUT_DIR = "../dataset/prepared"
 
-SCALER_PATH = "../models/scaler_v2.pkl"
+SCALER_PATH = "../models/scaler.pkl"
 
 
 # ============================================================
