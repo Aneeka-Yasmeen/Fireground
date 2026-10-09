@@ -20,18 +20,18 @@ from tensorflow.keras.utils import to_categorical
 # PATHS
 # ============================================================
 
-DATA_DIR = "../dataset/v2_prepared"
+DATA_DIR = "../dataset/prepared"
 
 MODEL_DIR = "../models"
 
 MODEL_PATH = (
     MODEL_DIR +
-    "/multitask_fireground_cnn_v2.keras"
+    "/multitask_fireground_cnn.keras"
 )
 
 HISTORY_PATH = (
     MODEL_DIR +
-    "/multitask_training_history_v2.json"
+    "/multitask_training_history.json"
 )
 
 
