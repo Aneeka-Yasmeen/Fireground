@@ -3,9 +3,7 @@
 # water-demand prototype -> results JSON, then serves the web dashboard.
 #
 # Inference uses TensorFlow/Keras directly against
-# models/multitask_fireground_cnn_v2.keras. If a built VNNX simulator binary
-# is available, set FIREGROUND_VNNX_SIMULATOR to its path before running this
-# script to use that instead (see src/live_vnnx_fireground_system_liveweb_v2.py).
+# models/multitask_fireground_cnn_v2.keras (see src/live_fireground_system.py).
 set -e
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
@@ -20,7 +18,7 @@ echo "        FIREGROUND AI DEMONSTRATION"
 echo "=============================================="
 echo
 
-"$PYTHON" src/live_vnnx_fireground_system_liveweb.py
+"$PYTHON" src/live_fireground_system.py
 
 echo
 echo "=============================================="
