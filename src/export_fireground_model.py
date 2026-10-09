@@ -3,7 +3,7 @@ import json
 import numpy as np
 from tensorflow.keras.models import load_model
 
-MODEL_PATH = "../models/multitask_fireground_cnn_v2.keras"
+MODEL_PATH = "../models/multitask_fireground_cnn.keras"
 EXPORT_DIR = "../models/exported_v2"
 
 os.makedirs(EXPORT_DIR, exist_ok=True)
