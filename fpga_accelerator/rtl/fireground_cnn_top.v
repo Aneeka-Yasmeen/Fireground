@@ -1,69 +1,17 @@
 // =============================================================================
 // fireground_cnn_top.v
 //
-// Sequential (single-MAC) hardware accelerator for the trained
-// "Fireground AI" multitask 1D-CNN (models/multitask_fireground_cnn.keras).
+// Sequential (single-MAC) hardware accelerator for the trained multitask 1D-CNN
+// (models/multitask_fireground_cnn_v2.keras): Conv1D(9->16) -> Conv1D(16->32) ->
+// GlobalAveragePooling1D -> Dense(32->32) -> 3 output heads (activity/environment/
+// physiological). Reports argmax per head, not softmax probabilities (softmax is
+// monotonic and doesn't change the classification decision).
 //
-// Pipeline (matches src/train_multitask_v2.py exactly):
-//   input (10 timesteps x 9 sensor channels)
-//     -> Conv1D  9->16ch, kernel=3, ReLU      (conv1)
-//     -> Conv1D 16->32ch, kernel=3, ReLU      (conv2)
-//     -> GlobalAveragePooling1D               (-> 32 values)
-//     -> Dense 32->32, ReLU                   (dense_shared)
-//     -> 3 parallel output heads (Dense, no activation in hardware -- see
-//        NOTE ON SOFTMAX below):
-//          activity        32->3
-//          environment     32->2
-//          physiological   32->3
-//
-// NOTE ON SOFTMAX: the trained model applies softmax to each head. Softmax
-// is monotonic, so it never changes which class has the highest score --
-// only the reported confidence. This accelerator reports the winning class
-// index (argmax of the raw logits) for each head, not a probability. Adding
-// hardware softmax (exp + divide) is a reasonable future extension if
-// per-class confidence is needed on-chip; it is not needed for the
-// classification decision itself, and omitting it keeps this first
-// accelerator design small. See docs/DESIGN_NOTES.md.
-//
-// NUMBER FORMAT: every input, weight, bias and intermediate activation is a
-// signed 16-bit Q4.11 fixed-point value (1 sign bit + 4 integer bits + 11
-// fractional bits; range -16 .. +15.9995, resolution 1/2048). Verified in
-// fpga_accelerator/tools/export_weights_fixedpoint.py that this format
-// reproduces the float32 model's classification on all 200 held-out test
-// windows (100% argmax agreement) before this RTL was written -- see that
-// script's printed output and fpga_accelerator/sim/expected_output.json.
-//
-// MAC rule (every multiply-accumulate in this design follows this exact
-// rule, matching the Python fixed-point reference bit-for-bit):
-//   acc         = sum(a_q4_11 * b_q4_11)              // 32-bit accumulator
-//   y_q4_11     = round_shift_right(acc, 11) + bias_q4_11
-//   y_q4_11     = saturate_to_16bit(y_q4_11)
-//   y_q4_11     = relu(y_q4_11)   // only on layers that have ReLU
-//
-// Datapath note: every MAC loop below reads its operand memories
-// COMBINATIONALLY (x_mem[addr], weight_rom[addr]) directly into the
-// accumulate expression in the same cycle the loop counters select that
-// address -- deliberately, so the last term of each inner loop is folded
-// into the accumulator in the same cycle the state machine decides to move
-// on. An earlier draft registered the operands one cycle ahead of the
-// accumulate step; that silently dropped the final MAC term of every inner
-// loop (the state machine advanced before the delayed product was added).
-// Caught by hand-tracing the cycle-by-cycle behavior against the Python
-// fixed-point reference, since no Verilog simulator was available in the
-// environment this was written in -- see docs/DESIGN_NOTES.md, and please
-// still run the testbench in sim/ yourself before synthesizing.
-//
-// This is a first, area-minimal accelerator: one shared adder/accumulator,
-// one MAC per clock cycle, weights held in on-chip ROM (Block RAM after
-// synthesis). Total MACs for one inference: 3456 (conv1) + 9216 (conv2) +
-// 1024 (dense_shared) + 256 (3 heads) = 13952, so one inference completes
-// in a few tens of thousands of clock cycles -- at 50 MHz that is well
-// under 1 ms, far faster than the ~1 Hz sensor sample rate this model was
-// designed for. A parallel/pipelined version trading area for throughput
-// is a natural next step once utilization/timing from this version is in
-// hand (see docs/DESIGN_NOTES.md).
+// Every value is signed 16-bit Q4.11 fixed-point (1 sign + 4 integer + 11
+// fractional bits). Full rationale, the MAC/requantize rule, verification
+// methodology, and the real bugs found before and during synthesis are documented
+// in docs/DESIGN_NOTES.md — read that before modifying this file.
 // =============================================================================
-
 module fireground_cnn_top #(
     parameter DW       = 16,   // data width (Q4.11 signed)
     parameter FRAC      = 11,  // fractional bits
