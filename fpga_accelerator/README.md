@@ -12,39 +12,26 @@ Synplify synthesis log) are in `docs/DESIGN_NOTES.md`.
 
 fpga_accelerator/
 ├── rtl/
-
-│ └── fireground_cnn_top.v the accelerator (single file, no sub-modules)
-
+│   └── fireground_cnn_top.v       # The accelerator (single file, no sub-modules)
 ├── weights/
-
-│ ├── conv1_w.hex, conv1_b.hex conv1D layer 1 (9->16ch, kernel 3)
-
-│ ├── conv2_w.hex, conv2_b.hex conv1D layer 2 (16->32ch, kernel 3)
-
-│ ├── dense_w.hex, dense_b.hex shared dense layer (32->32)
-
-│ ├── act_w.hex, act_b.hex activity head (32->3)
-
-│ ├── env_w.hex, env_b.hex environment head (32->2)
-
-│ ├── phy_w.hex, phy_b.hex physiological head (32->3)
-
-│ └── quant_format.json the fixed-point format these were quantized to
-
-├── sim/
-│ ├── tb_fireground_cnn_top.v self-checking testbench
-│ ├── test_input.hex one real test-set sensor window, pre-quantized
-│ └── expected_output.json the classification this test vector produces
-├── tools/
-│ ├── export_weights_fixedpoint.py regenerated weights/.hex and sim/ from the
-│ │ trained .keras model; validated the fixed-
-│ │ point math against the float model
-│ └── verify_fsm_cycle_accurate.py independent Python emulation of the RTL’s
-│ exact FSM timing, checked against all 200
-│ held-out test windows
-└── docs/
-└── DESIGN_NOTES.md verification report and design rationale
-
+│   ├── conv1_w.hex, conv1_b.hex   # conv1D layer 1 (9->16ch, kernel 3)
+│   ├── conv2_w.hex, conv2_b.hex   # conv1D layer 2 (16->32ch, kernel 3)
+│   ├── dense_w.hex, dense_b.hex   # Shared dense layer (32->32)
+│   ├── act_w.hex, act_b.hex       # Activity head (32->3)
+│   ├── env_w.hex, env_b.hex       # Environment head (32->2)
+│   ├── phy_w.hex, phy_b.hex       # Physiological head (32->3)
+│   └── quant_format.json          # The fixed-point format these were quantized to
+└── sim/
+    ├── tb_fireground_cnn_top.v    # Self-checking testbench
+    ├── test_input.hex             # One real test-set sensor window, pre-quantized
+    ├── expected_output.json       # The classification this test vector produces
+    ├── tools/
+    │   ├── export_weights_fixedpoint.py  # Regenerated weights/hex and sim/ from the trained .keras model; 
+    │   │                                 # validated the fixed-point math against the float model
+    │   └── verify_fsm_cycle_accurate.py  # Independent Python emulation of the RTL's exact FSM timing, 
+    │                                     # checked against all 200 held-out test windows
+    └── docs/
+        └── DESIGN_NOTES.md        # Verification report and design rationale
 ## Synthesis setup and result
 
 This core was imported into a fresh Libero SoC 2026.1 project targeting the
