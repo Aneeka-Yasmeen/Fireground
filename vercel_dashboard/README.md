@@ -1,4 +1,4 @@
-# Fireground AI — Vercel Visual Dashboard
+# Fireground — Vercel Visual Dashboard
 
 This folder is a static Vercel-ready dashboard built from the verified
 Fireground AI project result and the 60-sample live sensor stream.
