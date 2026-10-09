@@ -4,15 +4,13 @@ states, same counters, same non-blocking-assignment timing (every
 register update is computed from the CURRENT cycle's values and only
 takes effect at the next cycle boundary, exactly like Verilog `<=`).
 
-This exists because no Verilog simulator was available in the environment
-the RTL was written in. It is a second, independent check on top of the
+This is a second, independent check on top of the
 by-hand cycle tracing documented in the RTL comments and
 docs/DESIGN_NOTES.md: if this emulator (which mirrors the FSM's actual
 control flow, not just the "ideal" batch math) agrees with the trained
-float32 model, that is strong evidence the FSM's timing is correct -- but
+float32 model,the FSM's timing is correct -- but
 it is NOT a substitute for actually simulating the Verilog text itself
-before synthesizing. Please still run sim/tb_fireground_cnn_top.v in
-Libero's simulator.
+before synthesizing.
 """
 import sys
 import glob
