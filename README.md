@@ -120,9 +120,9 @@ The overall system follows the pipeline:
 ┌─────────────────────────────┐
 │      Multitask AI Model     │
 │                             │
-│ ┌─────────┐ ┌────────────┐ │
-│ │Activity │ │Physiology  │ │
-│ └─────────┘ └────────────┘ │
+│ ┌─────────┐ ┌────────────┐  │
+│ │Activity │ │Physiology  │  │
+│ └─────────┘ └────────────┘  │
 │                             │
 │ ┌─────────────────────────┐ │
 │ │     Environment         │ │
@@ -149,12 +149,15 @@ The overall system follows the pipeline:
 ```
 ---
 
-What’s next
+## What’s next
 
 This is v1. Planned for later versions:
 
 Real wearable sensor hardware in place of the synthetic stream
+
 RISC-V-side coordination on the PolarFire SoC (currently host-side software)
+
 Multi-hop mesh networking and PUF-based tamper-resistant firmware
+
 Parallel per-firefighter inference lanes on the FPGA fabric
 
