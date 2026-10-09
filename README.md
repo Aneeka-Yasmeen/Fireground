@@ -89,7 +89,7 @@ vercel_dashboard/ the live dashboard (per-firefighter view + aggregate water dem
 # 3. System Overview
 
 The overall system follows the pipeline:
-
+```
 
 ┌──────────────────────┐
 │    Sensor Data       │
@@ -144,7 +144,7 @@ The overall system follows the pipeline:
        │ NORMAL          │
        │ ELEVATED        │
        │ HIGH            │
-       └─────────────────┘ 
+       └─────────────────┘ ```
 
 ---
 
