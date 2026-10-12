@@ -161,3 +161,4 @@ Multi-hop mesh networking and PUF-based tamper-resistant firmware
 
 Parallel per-firefighter inference lanes on the FPGA fabric
 
+### AI assistance (Claude, ChatGPT) was used to draft the proposal, diagram and some help with code. The idea is solely the team's own.
